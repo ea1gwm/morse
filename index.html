@@ -210,6 +210,9 @@ button.peligro { color: var(--bad); border-color: var(--bad); }
 .controles .bucle { padding: 10px 10px; white-space: nowrap; }
 .controles .bucle.on { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); font-weight: 600; }
 .cerrar-sesion { font-size: 13px; padding: 6px 10px; background: transparent; color: var(--muted); }
+.burbuja .etiqueta { font-size: 12px; font-weight: 700; color: var(--accent); display: flex; gap: 8px; align-items: center; }
+.burbuja .etiqueta a { text-decoration: none; }
+.burbuja .codigo { font: 13px ui-monospace, Consolas, monospace; letter-spacing: 1px; color: var(--muted); word-break: break-word; }
 .bloqueo { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 14px; }
 header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white-space: nowrap; background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 8px; }
 .modal { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; background: var(--panel); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
@@ -245,7 +248,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <header class="barra">
   <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
   <h1 id="b-titulo">📻 Morse</h1>
-  <span class="ver" id="brand-version">v0.10.2</span>
+  <span class="ver" id="brand-version">v0.10.3</span>
   <span class="marcador" id="b-marcador" hidden></span>
   <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
   <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
@@ -676,7 +679,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <script>
 'use strict';
 
-const App = { version: '0.10.2' };
+const App = { version: '0.10.3' };
 
 // Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
 // funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
@@ -2143,8 +2146,12 @@ const Msg = {
         return `<div class="burbuja texto${mio ? ' mia' : ''}">${mio ? '' : `<div class="de">${this.nomHtml(m.de)}</div>`}
           <div class="txt-normal">${esc(m.texto)}</div><div class="info">💬 texto normal · ${hace(fecha(m.creado))}</div></div>`;
       }
+      // Tus mensajes en Morse los ves en claro (los escribiste tú), pero se marca que salieron
+      // en Morse y se ve el código: al otro le llegan cerrados y los descifra oyéndolos.
       if (mio) {
-        return `<div class="burbuja mia"><div class="txt">${esc(m.texto)}</div>
+        return `<div class="burbuja mia"><div class="etiqueta">📻 Enviado en Morse · ${m.modo === 'dificil' ? 'difícil' : 'fácil'}
+          <a href="#" data-oir="${esc(m.id)}" aria-label="Escuchar">🔊</a></div>
+          <div class="txt">${esc(m.texto)}</div><div class="codigo">${esc(bonito(aMorse(m.texto)))}</div>
           <div class="info">${quien} · ${hace(fecha(m.creado))}</div></div>`;
       }
       if (yoHecho) {
@@ -2446,6 +2453,7 @@ $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará com
 // Al abrir una versión nueva se enseña qué ha cambiado desde la última que se vio.
 // Si la app lleva rato abierta y se publica otra, se avisa para recargar.
 const NOVEDADES = [
+  ['0.10.3', ['En tus mensajes se indica si salieron en Morse (📻, con el código y para escucharlo) o en texto normal (💬). Tu compañero los recibe cerrados y los descifra oyéndolos.']],
   ['0.10.2', ['En Mensajes, el botón «Salir» ahora se llama «Cerrar sesión» y pide confirmación (para volver al inicio usa ⌂).']],
   ['0.10.1', ['Palabras: botón 🔂 Bucle para que la palabra se repita sola con una pausa (eliges la pausa en ⚙).', 'La Ñ ya no sale en Palabras salvo que la actives en Ajustes.', 'Corregido: después de descifrar, los mensajes volvían a salir en texto normal en vez de en Morse. Ahora el botón dice siempre «Enviar en Morse» o «Enviar texto».']],
   ['0.10.0', ['Descifra los mensajes dentro del propio chat, sin cambiar de pantalla.', 'Menú ⋮ en cada chat: borrar la conversación, salir de un grupo o borrarlo (si lo creaste).', 'Invita a un grupo por WhatsApp o Telegram: el enlace abre la app y te pregunta si quieres entrar.', 'En Mensajes ves quién está conectado ahora y puedes chatear con un toque.', 'Icono nuevo y botón para instalar la app en el móvil o el PC.', 'En los chats puedes mandar también un mensaje en texto normal (sin Morse) para decir algo concreto.', 'Aprender letras: pasas de lección automáticamente al llegar a los aciertos y el tiempo que elijas en Ajustes.']],
