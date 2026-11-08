@@ -1,4 +1,4 @@
-const CACHE = 'morse-v0.9.0';
+const CACHE = 'morse-v0.9.1';
 const ASSETS = ['./', './index.html', './manifest.json', './morse-icon.svg', './morse-192.png', './morse-512.png'];
 
 self.addEventListener('install', e => {
