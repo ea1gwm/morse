@@ -248,7 +248,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <header class="barra">
   <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
   <h1 id="b-titulo">📻 Morse</h1>
-  <span class="ver" id="brand-version">v0.10.3</span>
+  <span class="ver" id="brand-version">v0.10.4</span>
   <span class="marcador" id="b-marcador" hidden></span>
   <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
   <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
@@ -615,8 +615,10 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
         <input type="range" id="aj-auto-seg" min="0" max="8" step="0.5">
         <div class="muted">Cuenta desde que acaba de sonar la letra hasta que la pulsas. A 0 no se tiene en cuenta el tiempo.</div>
       </div>
-      <label>Grupos de 5 por ejercicio (Grupos): <b id="aj-grupos-v"></b></label>
-      <input type="range" id="aj-grupos" min="2" max="20" step="1">
+      <label>Grupos por ejercicio (en «Grupos»): <b id="aj-grupos-v"></b></label>
+      <input type="range" id="aj-grupos" min="1" max="20" step="1">
+      <label>Letras por grupo: <b id="aj-letras-grupo-v"></b></label>
+      <input type="range" id="aj-letras-grupo" min="1" max="5" step="1">
       <label for="aj-duracion">Duración de cada ejercicio</label>
       <select id="aj-duracion" class="sel-duracion"></select>
       <label for="aj-nombre">Tu indicativo o nombre (para compartir resultados)</label>
@@ -657,7 +659,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
     </div>
     <div class="card">
       <h2>🧩 Grupos</h2>
-      <p>Suenan grupos de 5 letras de tu lección; escríbelos y corrige. Es la práctica clásica de recepción.</p>
+      <p>Suenan grupos de letras de tu lección; escríbelos y corrige. Es la práctica clásica de recepción. En Ajustes eliges cuántos grupos (desde 1) y cuántas letras lleva cada uno (de 1 a 5).</p>
     </div>
     <div class="card">
       <h2>✉ Chats</h2>
@@ -679,7 +681,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <script>
 'use strict';
 
-const App = { version: '0.10.3' };
+const App = { version: '0.10.4' };
 
 // Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
 // funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
@@ -757,7 +759,7 @@ function normalizar(t) {
 const aMorse = t => normalizar(t).split(' ').map(p => [...p].map(c => MORSE[c]).join(' ')).join('  /  ');
 
 // ---------------------------------------------------------------- ajustes
-const Ajustes = Object.assign({ wpm: 20, efectiva: 10, tono: 600, volumen: 60, grupos: 5, ayuda: 3, duracion: 5, nombre: '', sonidoFallo: 'ups', autoSubir: true, autoPct: 90, autoSeg: 3, bucle: false, pausaBucle: 2, enye: false }, leer('morse-ajustes', {}));
+const Ajustes = Object.assign({ wpm: 20, efectiva: 10, tono: 600, volumen: 60, grupos: 5, letrasGrupo: 5, ayuda: 3, duracion: 5, nombre: '', sonidoFallo: 'ups', autoSubir: true, autoPct: 90, autoSeg: 3, bucle: false, pausaBucle: 2, enye: false }, leer('morse-ajustes', {}));
 function guardarAjustes() { guardar('morse-ajustes', Ajustes); }
 
 // ---------------------------------------------------------------- sonido
@@ -1103,7 +1105,7 @@ const Koch = {
     const letras = [...KOCH.slice(0, this.n)], nueva = letras[this.n - 1], grupos = [];
     for (let g = 0; g < Ajustes.grupos; g++) {
       let s = '';
-      for (let i = 0; i < 5; i++) s += Stats.elegir(letras, x => x, x => x === nueva ? 1 : 0, s.at(-1));
+      for (let i = 0; i < Ajustes.letrasGrupo; i++) s += Stats.elegir(letras, x => x, x => x === nueva ? 1 : 0, s.at(-1));
       grupos.push(s);
     }
     return grupos.join(' ');
@@ -1146,7 +1148,7 @@ function distancia(a, b) {
 function comparar(obj, resp) {
   let html = '';
   for (let i = 0; i < obj.length; i++) {
-    if (i % 5 === 0 && i) html += ' ';
+    if (i % Ajustes.letrasGrupo === 0 && i) html += ' ';
     if (i >= resp.length) html += `<span class="falta">${esc(obj[i])}</span>`;
     else if (resp[i] === obj[i]) html += `<span class="ok">${esc(obj[i])}</span>`;
     else html += `<span class="mal" title="escribiste ${esc(resp[i])}">${esc(obj[i])}</span>`;
@@ -1696,6 +1698,7 @@ function pintarAjustes() {
   $('aj-tono').value = Ajustes.tono; $('aj-tono-v').textContent = Ajustes.tono;
   $('aj-vol').value = Ajustes.volumen; $('aj-vol-v').textContent = Ajustes.volumen;
   $('aj-grupos').value = Ajustes.grupos; $('aj-grupos-v').textContent = Ajustes.grupos;
+  $('aj-letras-grupo').value = Ajustes.letrasGrupo; $('aj-letras-grupo-v').textContent = Ajustes.letrasGrupo;
   $('aj-ayuda').value = Ajustes.ayuda; $('aj-ayuda-v').textContent = Ajustes.ayuda;
   // Copia rápida de la velocidad en el panel ⚙ de los ejercicios.
   $('rp-wpm').value = Ajustes.wpm; $('rp-wpm-v').textContent = Ajustes.wpm;
@@ -1726,7 +1729,7 @@ function pintarDebiles() {
   }).join('') : '<div class="muted">Aún no hay datos: haz algún ejercicio.</div>';
 }
 $('aj-reset-stats').onclick = () => { if (confirm('¿Olvidar qué letras te cuestan más? El repaso empezará de cero.')) { Stats.reiniciar(); pintarDebiles(); } };
-[['aj-wpm', 'wpm'], ['aj-ef', 'efectiva'], ['aj-tono', 'tono'], ['aj-vol', 'volumen'], ['aj-grupos', 'grupos'], ['aj-ayuda', 'ayuda'], ['rp-wpm', 'wpm'], ['rp-ef', 'efectiva'], ['aj-auto-pct', 'autoPct'], ['aj-auto-seg', 'autoSeg']].forEach(([id, k]) => {
+[['aj-wpm', 'wpm'], ['aj-ef', 'efectiva'], ['aj-tono', 'tono'], ['aj-vol', 'volumen'], ['aj-grupos', 'grupos'], ['aj-letras-grupo', 'letrasGrupo'], ['aj-ayuda', 'ayuda'], ['rp-wpm', 'wpm'], ['rp-ef', 'efectiva'], ['aj-auto-pct', 'autoPct'], ['aj-auto-seg', 'autoSeg']].forEach(([id, k]) => {
   $(id).oninput = () => {
     Ajustes[k] = +$(id).value;
     if (k === 'wpm' && Ajustes.efectiva > Ajustes.wpm) Ajustes.efectiva = Ajustes.wpm;
@@ -2453,6 +2456,7 @@ $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará com
 // Al abrir una versión nueva se enseña qué ha cambiado desde la última que se vio.
 // Si la app lleva rato abierta y se publica otra, se avisa para recargar.
 const NOVEDADES = [
+  ['0.10.4', ['Grupos: puedes poner desde 1 grupo y elegir cuántas letras lleva cada grupo (de 1 a 5), para empezar más fácil.']],
   ['0.10.3', ['En tus mensajes se indica si salieron en Morse (📻, con el código y para escucharlo) o en texto normal (💬). Tu compañero los recibe cerrados y los descifra oyéndolos.']],
   ['0.10.2', ['En Mensajes, el botón «Salir» ahora se llama «Cerrar sesión» y pide confirmación (para volver al inicio usa ⌂).']],
   ['0.10.1', ['Palabras: botón 🔂 Bucle para que la palabra se repita sola con una pausa (eliges la pausa en ⚙).', 'La Ñ ya no sale en Palabras salvo que la actives en Ajustes.', 'Corregido: después de descifrar, los mensajes volvían a salir en texto normal en vez de en Morse. Ahora el botón dice siempre «Enviar en Morse» o «Enviar texto».']],
