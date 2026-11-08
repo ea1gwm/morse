@@ -3,7 +3,8 @@ rules_version = '2';
 // App Morse.
 // Las cuentas son email/contraseña con el email <indicativo>@indicativos.invalid,
 // así que el indicativo de quien hace la petición sale del propio token.
-// 'indicativos' solo sirve para comprobar que el destinatario existe.
+// 'indicativos' solo sirve para comprobar que un compañero existe.
+// 'conversaciones' son los chats (individuales o de grupo) y dentro van sus mensajes.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -16,27 +17,54 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['creado']);
     }
 
-    match /mensajes/{id} {
-      allow read: if dentro() && (resource.data.de == yo() || resource.data.para == yo());
+    match /conversaciones/{cid} {
+      // resource == null: se puede comprobar si un chat individual ya existe.
+      allow read: if dentro() && (resource == null || yo() in resource.data.miembros);
 
       allow create: if dentro()
-        && request.resource.data.keys().hasOnly(['de', 'para', 'texto', 'modo', 'estado', 'creado', 'fallos', 'progreso'])
-        && request.resource.data.de == yo()
-        && request.resource.data.para is string
-        && exists(/databases/$(database)/documents/indicativos/$(request.resource.data.para))
-        && request.resource.data.texto is string
-        && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 160
-        && request.resource.data.modo in ['facil', 'dificil']
-        && request.resource.data.estado == 'pendiente';
+        && request.resource.data.keys().hasOnly(['tipo', 'nombre', 'miembros', 'creador', 'creado', 'ultimo'])
+        && request.resource.data.creador == yo()
+        && yo() in request.resource.data.miembros
+        && request.resource.data.miembros.size() >= 2 && request.resource.data.miembros.size() <= 30
+        && request.resource.data.tipo in ['individual', 'grupo']
+        && (request.resource.data.tipo == 'grupo' || request.resource.data.miembros.size() == 2);
 
-      // Solo el destinatario apunta su progreso y el resultado.
-      allow update: if dentro() && resource.data.para == yo()
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['estado', 'fallos', 'progreso', 'segundos', 'resuelto', 'rendido'])
-        && request.resource.data.estado in ['pendiente', 'resuelto'];
+      allow update: if dentro() && yo() in resource.data.miembros && (
+        // Cualquiera del chat marca el último mensaje.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimo'])
+        // El creador de un grupo cambia el nombre o los miembros.
+        || (resource.data.tipo == 'grupo' && resource.data.creador == yo()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'nombre'])
+            && request.resource.data.miembros.size() <= 30)
+        // Cualquiera puede salirse de un grupo (quitarse a sí mismo y a nadie más).
+        || (resource.data.tipo == 'grupo'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros'])
+            && request.resource.data.miembros.toSet() == resource.data.miembros.toSet().difference([yo()].toSet()))
+      );
 
-      // Borrar, solo quien lo envió.
-      allow delete: if dentro() && resource.data.de == yo();
+      allow delete: if dentro() && resource.data.creador == yo();
+
+      match /mensajes/{mid} {
+        function miembro() {
+          return yo() in get(/databases/$(database)/documents/conversaciones/$(cid)).data.miembros;
+        }
+        allow read: if dentro() && miembro();
+
+        allow create: if dentro() && miembro()
+          && request.resource.data.keys().hasOnly(['de', 'texto', 'modo', 'creado', 'resueltos'])
+          && request.resource.data.de == yo()
+          && request.resource.data.texto is string
+          && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 160
+          && request.resource.data.modo in ['facil', 'dificil']
+          && request.resource.data.resueltos.size() == 0;
+
+        // Cada uno solo apunta su propio progreso dentro de 'resueltos'.
+        allow update: if dentro() && miembro() && resource.data.de != yo()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resueltos'])
+          && request.resource.data.resueltos.diff(resource.data.resueltos).affectedKeys().hasOnly([yo()]);
+
+        allow delete: if dentro() && resource.data.de == yo();
+      }
     }
 
     match /{document=**} {

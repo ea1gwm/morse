@@ -159,6 +159,30 @@ label.check { display: flex; align-items: center; gap: 6px; margin: 6px 0; color
 .lecciones .grupo-lec { position: sticky; top: 0; background: var(--box); padding: 5px 12px; font-size: 13px; font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--line); }
 .radios label { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 15px; margin: 6px 0; }
 .radios input { margin-top: 4px; }
+.aviso-version { flex: none; border: 0; border-radius: 0; background: var(--ok); color: #fff; font-weight: 600; padding: 8px; }
+#nov-velo { z-index: 40; }
+.modal.novedades { text-align: left; }
+.novedades h3 { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+.novedades ul { padding-left: 20px; }
+.novedades li { margin: 6px 0; }
+.novedades button { display: block; margin: 10px auto 0; }
+/* Chats */
+.chat-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.chat-cab .q { flex: 1; min-width: 0; }
+.chat-cab .q b, .chat-cab .q small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-cab .q small { color: var(--muted); }
+.chat { display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; }
+.burbuja { max-width: 85%; align-self: flex-start; padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: var(--panel); border: 1px solid var(--line); }
+.burbuja.mia { align-self: flex-end; border-radius: 14px 14px 4px 14px; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+.burbuja.bloq { cursor: pointer; border: 2px dashed var(--accent); }
+.burbuja .de { font-size: 12px; font-weight: 700; color: var(--accent); }
+.burbuja .txt { font: 600 17px ui-monospace, Consolas, monospace; letter-spacing: 1px; word-break: break-word; }
+.burbuja .info { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.burbuja .info span { white-space: nowrap; margin-right: 6px; }
+.burbuja .info a { text-decoration: none; }
+.responder { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); background: var(--bg); padding: 8px 0 calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.responder textarea { min-height: 48px; }
+.bloqueo { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 14px; }
 header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white-space: nowrap; background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 8px; }
 .modal { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; background: var(--panel); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
 #res-velo { z-index: 40; }
@@ -193,12 +217,21 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <header class="barra">
   <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
   <h1 id="b-titulo">📻 Morse</h1>
-  <span class="ver" id="brand-version">v0.8.0</span>
+  <span class="ver" id="brand-version">v0.9.0</span>
   <span class="marcador" id="b-marcador" hidden></span>
   <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
   <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
 </header>
 <div class="aviso-local" id="aviso-local" hidden>Modo prueba local: los mensajes solo se ven en este navegador</div>
+<button class="aviso-version" id="aviso-version" hidden>🆕 Hay una versión nueva de la app · Toca para actualizar</button>
+
+<!-- ============ NOVEDADES (al abrir una versión nueva) ============ -->
+<div class="velo" id="nov-velo" hidden></div>
+<div class="modal novedades" id="novedades" hidden role="dialog" aria-labelledby="nov-titulo">
+  <h2 id="nov-titulo"></h2>
+  <div id="nov-lista"></div>
+  <button class="pri" id="nov-cerrar">¡Entendido!</button>
+</div>
 
 <!-- ============ PANEL DE OPCIONES (se despliega con ⚙) ============ -->
 <div class="velo" id="velo" hidden></div>
@@ -375,7 +408,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
   <!-- ============ MENSAJES ============ -->
   <section class="vista" id="v-mensajes" hidden>
     <div id="m-login" class="card">
-      <h2>Mensajes entre compañeros</h2>
+      <h2>Chats entre compañeros</h2>
       <div class="muted">Entra con tu indicativo (o un nombre) y una contraseña. Sirve en varios dispositivos.</div>
       <label for="lg-call">Indicativo</label>
       <input type="text" id="lg-call" autocapitalize="characters" autocomplete="username" spellcheck="false" maxlength="12">
@@ -388,33 +421,57 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       <div id="lg-error" class="muted" style="color:var(--bad);margin-top:10px"></div>
     </div>
 
-    <div id="m-main" hidden>
+    <!-- Lista de chats -->
+    <div id="m-lista" hidden>
       <div class="fila" style="margin-bottom:12px">
         <div style="flex:1">Conectado como <b id="m-yo"></b></div>
         <button id="m-salir">Salir</button>
       </div>
-      <div class="seg" id="m-seg">
-        <button data-sub="recibidos" class="on">Recibidos</button>
-        <button data-sub="enviados">Enviados</button>
-        <button data-sub="nuevo">✉ Nuevo</button>
+      <div class="fila" style="margin-bottom:12px">
+        <button class="pri" id="m-nuevo-ind">✉ Chat con un compañero</button>
+        <button id="m-nuevo-grupo">👥 Nuevo grupo</button>
       </div>
-      <div class="card lista" id="m-recibidos"></div>
-      <div class="card lista" id="m-enviados" hidden></div>
-      <div class="card" id="m-nuevo" hidden>
-        <label for="nv-para">Para (indicativo)</label>
-        <input type="text" id="nv-para" list="nv-contactos" autocapitalize="characters" spellcheck="false" maxlength="12">
-        <datalist id="nv-contactos"></datalist>
-        <label for="nv-texto">Mensaje (máx. <span id="nv-max"></span> caracteres)</label>
-        <textarea id="nv-texto" autocomplete="off" spellcheck="false"></textarea>
-        <div class="muted"><span id="nv-cuenta">0</span> caracteres · los que no existen en Morse se quitan</div>
-        <label>Dificultad para tu compañero</label>
-        <div class="radios">
-          <label><input type="radio" name="nv-modo" value="facil" checked> <span><b>Fácil</b>: ve cuántas letras hay y dónde están los espacios</span></label>
-          <label><input type="radio" name="nv-modo" value="dificil"> <span><b>Difícil</b>: no ve nada, escribe de corrido (espacios incluidos)</span></label>
-        </div>
-        <div class="fila" style="margin-top:12px">
-          <button id="nv-oir">🔊 Probar cómo suena</button>
-          <button class="pri" id="nv-enviar">Enviar</button>
+      <div class="card lista" id="m-chats"></div>
+    </div>
+
+    <!-- Crear chat o grupo -->
+    <div id="m-nuevo" class="card" hidden>
+      <h2 id="nv-titulo">Nuevo chat</h2>
+      <div id="nv-grupo-campos">
+        <label for="nv-nombre">Nombre del grupo</label>
+        <input type="text" id="nv-nombre" maxlength="30" placeholder="Curso de Morse">
+      </div>
+      <label for="nv-para" id="nv-para-label">Indicativo de tu compañero</label>
+      <input type="text" id="nv-para" list="nv-contactos" autocapitalize="characters" spellcheck="false">
+      <datalist id="nv-contactos"></datalist>
+      <div class="fila" style="margin-top:14px">
+        <button id="nv-cancelar">Cancelar</button>
+        <button class="pri" id="nv-crear">Crear</button>
+      </div>
+    </div>
+
+    <!-- Conversación -->
+    <div id="m-chat" hidden>
+      <div class="chat-cab">
+        <button id="ch-volver" aria-label="Volver a los chats">←</button>
+        <div class="q"><b id="ch-titulo"></b><small id="ch-sub"></small></div>
+        <button id="ch-info-btn" aria-label="Miembros del grupo" hidden>👥</button>
+      </div>
+      <div class="card" id="ch-info" hidden></div>
+      <div class="chat" id="ch-mensajes"></div>
+      <div class="responder">
+        <div class="bloqueo" id="ch-bloqueo" hidden></div>
+        <div id="ch-escribir">
+          <textarea id="nv-texto" rows="2" placeholder="Escribe tu mensaje: le llegará en Morse" autocomplete="off" spellcheck="false"></textarea>
+          <div class="fila" style="margin-top:6px">
+            <select id="nv-modo" style="width:auto;flex:1">
+              <option value="facil">Fácil: ve las casillas</option>
+              <option value="dificil">Difícil: sin pistas</option>
+            </select>
+            <span class="muted"><span id="nv-cuenta">0</span>/<span id="nv-max"></span></span>
+            <button id="nv-oir" aria-label="Escuchar cómo suena">🔊</button>
+            <button class="pri" id="nv-enviar">Enviar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -443,7 +500,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
     </div>
   </section>
 
-  <!-- ============ AJUSTES ============ -->
+<!-- ============ AJUSTES ============ -->
   <section class="vista" id="v-ajustes" hidden>
     <div class="card">
       <h2>Sonido</h2>
@@ -526,8 +583,13 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       <p>Suenan grupos de 5 letras de tu lección; escríbelos y corrige. Es la práctica clásica de recepción.</p>
     </div>
     <div class="card">
-      <h2>✉ Mensajes</h2>
-      <p>Envía un texto a un compañero. Le suena en Morse con <i>su</i> velocidad y lo va descifrando letra a letra: lo acertado se queda en verde. Tú ves su progreso y el resultado.</p>
+      <h2>✉ Chats</h2>
+      <p>Chatea con un compañero o crea un grupo. Cada mensaje llega cerrado y suena en Morse con <i>tu</i> velocidad: lo descifras letra a letra (lo acertado se queda en verde) y entonces aparece en la conversación.</p>
+      <ul>
+        <li>Para responder, primero descifra lo que te han mandado.</li>
+        <li>En tus mensajes ves quién los ha descifrado (✓, con sus fallos), quién va por la mitad (%) y quién no los ha abierto (⏳).</li>
+        <li>En un grupo, el creador puede añadir compañeros y cualquiera puede salirse.</li>
+      </ul>
     </div>
     <div class="card">
       <h2>Velocidad</h2>
@@ -540,7 +602,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <script>
 'use strict';
 
-const App = { version: '0.8.0' };
+const App = { version: '0.9.0' };
 
 // Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
 // funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
@@ -1476,6 +1538,11 @@ $('aj-reset-stats').onclick = () => { if (confirm('¿Olvidar qué letras te cues
 $('aj-probar').onclick = () => Sonido.reproducir('PARIS PARIS');
 
 // ---------------------------------------------------------------- red: Firebase
+// Datos: 'indicativos/{CALL}' (para saber quién existe) y 'conversaciones/{id}' con
+// { tipo: 'individual'|'grupo', nombre, miembros: [CALL…], creador, ultimo: {de, ts} } y
+// su subcolección 'mensajes/{id}' con { de, texto, modo, creado, resueltos: {CALL: {...}} }.
+// En 'resueltos' cada uno apunta su progreso: p (0-1), f (fallos), s (segundos),
+// ok (descifrado) o r (se rindió).
 const RedFirebase = {
   modo: 'firebase',
   async iniciar() {
@@ -1484,10 +1551,12 @@ const RedFirebase = {
     try { await this.db.enablePersistence({ synchronizeTabs: true }); } catch {}
   },
   email: call => call.toLowerCase() + '@' + DOMINIO_CUENTAS,
+  ts: () => firebase.firestore.FieldValue.serverTimestamp(),
+  convs() { return this.db.collection('conversaciones'); },
   onSesion(cb) { this.auth.onAuthStateChanged(u => cb(u ? u.email.split('@')[0].toUpperCase() : null)); },
   async asegurarIndicativo(call) {
     const ref = this.db.collection('indicativos').doc(call);
-    if (!(await ref.get()).exists) await ref.set({ creado: firebase.firestore.FieldValue.serverTimestamp() });
+    if (!(await ref.get()).exists) await ref.set({ creado: this.ts() });
   },
   async registrar(call, pass) {
     try { await this.auth.createUserWithEmailAndPassword(this.email(call), pass); }
@@ -1513,23 +1582,42 @@ const RedFirebase = {
   },
   salir() { return this.auth.signOut(); },
   async existe(call) { return (await this.db.collection('indicativos').doc(call).get()).exists; },
-  escuchar(campo, yo, cb) {
-    return this.db.collection('mensajes').where(campo, '==', yo).onSnapshot(
-      s => cb(s.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))),
-      e => toast('Error al leer mensajes: ' + e.message));
+  lista: s => s.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })),
+  escucharChats(yo, cb) {
+    return this.convs().where('miembros', 'array-contains', yo)
+      .onSnapshot(s => cb(this.lista(s)), e => toast('Error al leer los chats: ' + e.message));
   },
-  enviar(m) { return this.db.collection('mensajes').add({ ...m, creado: firebase.firestore.FieldValue.serverTimestamp() }); },
-  actualizar(id, campos) { return this.db.collection('mensajes').doc(id).update(campos); },
-  borrar(id) { return this.db.collection('mensajes').doc(id).delete(); },
-  ahora() { return firebase.firestore.FieldValue.serverTimestamp(); }
+  escucharMensajes(cid, cb) {
+    return this.convs().doc(cid).collection('mensajes').orderBy('creado')
+      .onSnapshot(s => cb(this.lista(s)), e => toast('Error al leer los mensajes: ' + e.message));
+  },
+  // Con id fijo (chats individuales) no se duplica: si ya existe, se reutiliza.
+  async crearChat({ id, tipo, nombre, miembros }, yo) {
+    const ref = id ? this.convs().doc(id) : this.convs().doc();
+    if (id && (await ref.get()).exists) return ref.id;
+    await ref.set({ tipo, nombre: nombre || '', miembros, creador: yo, creado: this.ts(), ultimo: { de: yo, ts: this.ts() } });
+    return ref.id;
+  },
+  async enviar(cid, { de, texto, modo }) {
+    const conv = this.convs().doc(cid), msg = conv.collection('mensajes').doc(), b = this.db.batch();
+    b.set(msg, { de, texto, modo, creado: this.ts(), resueltos: {} });
+    b.update(conv, { ultimo: { de, ts: this.ts() } });
+    await b.commit();
+  },
+  resolver(cid, mid, yo, datos) {
+    return this.convs().doc(cid).collection('mensajes').doc(mid).update({ ['resueltos.' + yo]: datos });
+  },
+  borrarMensaje(cid, mid) { return this.convs().doc(cid).collection('mensajes').doc(mid).delete(); },
+  cambiarMiembros(cid, miembros) { return this.convs().doc(cid).update({ miembros }); },
+  ahora() { return this.ts(); }
 };
 
 // ---------------------------------------------------------------- red: prueba local
-// Simula el servidor en localStorage. La sesión va en sessionStorage, así que dos
-// pestañas pueden ser dos compañeros distintos y se avisan por BroadcastChannel.
+// Simula el servidor en localStorage. La sesión va en sessionStorage, así que varias
+// pestañas pueden ser compañeros distintos y se avisan por BroadcastChannel.
 const RedLocal = {
   modo: 'local', subs: new Set(), cbSesion: null,
-  db() { return leer('morse-localdb', null) || { usuarios: {}, mensajes: {} }; },
+  db() { const d = leer('morse-localdb', null) || {}; d.usuarios ||= {}; d.convs ||= {}; return d; },
   grabar(db) { guardar('morse-localdb', db); this.bc?.postMessage(1); this.emitir(); },
   emitir() { this.subs.forEach(f => f()); },
   async iniciar() {
@@ -1551,91 +1639,192 @@ const RedLocal = {
   },
   async salir() { this.fijar(null); },
   async existe(call) { return !!this.db().usuarios[call]; },
-  escuchar(campo, yo, cb) {
-    const f = () => cb(Object.entries(this.db().mensajes).filter(([, m]) => m[campo] === yo).map(([id, m]) => ({ id, ...m })));
-    this.subs.add(f); f();
-    return () => this.subs.delete(f);
+  sub(f) { this.subs.add(f); f(); return () => this.subs.delete(f); },
+  escucharChats(yo, cb) {
+    return this.sub(() => cb(Object.entries(this.db().convs).filter(([, c]) => c.miembros.includes(yo))
+      .map(([id, c]) => { const { mensajes, ...resto } = c; return { id, ...resto }; })));
   },
-  async enviar(m) {
-    const db = this.db(), id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    db.mensajes[id] = { ...m, creado: Date.now() }; this.grabar(db);
+  escucharMensajes(cid, cb) {
+    return this.sub(() => cb(Object.entries(this.db().convs[cid]?.mensajes || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => a.creado - b.creado)));
   },
-  async actualizar(id, campos) { const db = this.db(); if (db.mensajes[id]) Object.assign(db.mensajes[id], campos); this.grabar(db); },
-  async borrar(id) { const db = this.db(); delete db.mensajes[id]; this.grabar(db); },
+  nuevoId: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+  async crearChat({ id, tipo, nombre, miembros }, yo) {
+    const db = this.db(); id ||= this.nuevoId();
+    if (!db.convs[id]) { db.convs[id] = { tipo, nombre: nombre || '', miembros, creador: yo, creado: Date.now(), ultimo: { de: yo, ts: Date.now() }, mensajes: {} }; this.grabar(db); }
+    return id;
+  },
+  async enviar(cid, { de, texto, modo }) {
+    const db = this.db(), c = db.convs[cid];
+    c.mensajes[this.nuevoId()] = { de, texto, modo, creado: Date.now(), resueltos: {} };
+    c.ultimo = { de, ts: Date.now() }; this.grabar(db);
+  },
+  async resolver(cid, mid, yo, datos) { const db = this.db(), m = db.convs[cid]?.mensajes[mid]; if (m) { m.resueltos[yo] = datos; this.grabar(db); } },
+  async borrarMensaje(cid, mid) { const db = this.db(); delete db.convs[cid]?.mensajes[mid]; this.grabar(db); },
+  async cambiarMiembros(cid, miembros) { const db = this.db(); db.convs[cid].miembros = miembros; this.grabar(db); },
   ahora() { return Date.now(); }
 };
 
 const Red = (FIREBASE_CONFIG && !new URLSearchParams(location.search).has('local')) ? RedFirebase : RedLocal;
 
-// ---------------------------------------------------------------- mensajes
+// ---------------------------------------------------------------- mensajes (chats)
+// Cada chat es individual (dos personas) o de grupo. Los mensajes llegan cerrados: cada
+// uno los descifra en Morse y, al acertar, ve el texto en la conversación. Para poder
+// responder hay que haber descifrado antes todo lo que te han enviado.
 const Msg = {
-  yo: null, recibidos: [], enviados: [], quitar: [], primeraCarga: true,
-  ocultos: new Set(leer('morse-ocultos', [])),
+  yo: null, chats: [], abierto: null, mensajes: [], quitar: [], quitarChat: null, conocidos: {},
+  visto: leer('morse-visto', {}),
   contactos: leer('morse-contactos', []),
   sesion(call) {
-    this.quitar.forEach(f => f()); this.quitar = [];
-    this.yo = call; this.recibidos = []; this.enviados = []; this.primeraCarga = true;
-    $('m-login').hidden = !!call; $('m-main').hidden = !call; $('m-desc').hidden = true;
-    if (!call) { this.pintar(); return; }
+    this.quitar.forEach(f => f()); this.quitar = []; this.cerrarChat(true);
+    Object.assign(this, { yo: call, chats: [], conocidos: {}, primera: true });
+    this.vista(call ? 'lista' : 'login');
+    if (!call) return this.pintarBadge();
     $('m-yo').textContent = call;
-    this.quitar.push(Red.escuchar('para', call, l => this.llegan(l)));
-    this.quitar.push(Red.escuchar('de', call, l => { this.enviados = l; this.pintar(); }));
+    this.quitar.push(Red.escucharChats(call, l => this.llegan(l)));
   },
+  vista(v) { ['login', 'lista', 'nuevo', 'chat', 'desc'].forEach(x => $('m-' + x).hidden = x !== v); $('main').scrollTop = 0; },
+  // Avisa cuando otro escribe en un chat (salvo en el que tienes abierto).
   llegan(lista) {
-    const antes = new Set(this.recibidos.map(m => m.id));
-    const nuevos = lista.filter(m => !antes.has(m.id) && m.estado === 'pendiente');
-    this.recibidos = lista;
-    if (!this.primeraCarga && nuevos.length) {
-      toast(`✉ Mensaje nuevo de ${nuevos[0].de}`);
-      navigator.vibrate?.([60, 60, 180]);
+    for (const c of lista) {
+      const t = fecha(c.ultimo?.ts), antes = this.conocidos[c.id];
+      if (!this.primera && antes !== undefined && t > antes && c.ultimo.de !== this.yo && c.id !== this.abierto) {
+        toast(`✉ ${c.ultimo.de} ha escrito en ${this.titulo(c)}`); navigator.vibrate?.([60, 60, 180]);
+      }
+      this.conocidos[c.id] = t;
     }
-    this.primeraCarga = false;
-    this.pintar();
-    if (Desc.m) { const m = lista.find(x => x.id === Desc.m.id); if (m) Desc.m = m; }
+    this.primera = false; this.chats = lista;
+    this.pintarLista();
+    if (this.abierto) this.pintarCabecera();
   },
-  pintar() {
-    const rec = this.recibidos.filter(m => !this.ocultos.has(m.id)).sort((a, b) => fecha(b.creado) - fecha(a.creado));
-    const env = this.enviados.filter(m => !this.ocultos.has(m.id)).sort((a, b) => fecha(b.creado) - fecha(a.creado));
-    const pend = rec.filter(m => m.estado === 'pendiente').length;
-    $('badge').hidden = !pend; $('badge').textContent = pend;
-    $('m-recibidos').innerHTML = rec.length ? rec.map(m => {
-      const prog = leer('morse-prog-' + m.id, null);
-      const est = m.estado === 'resuelto' ? `<span class="estado hecho">✓ ${fallosTxt(m.fallos)}</span>`
-        : prog ? `<span class="estado curso">${Math.round((m.progreso || 0) * 100)} %</span>` : '<span class="estado nuevo">Nuevo</span>';
-      const txt = m.estado === 'resuelto' ? esc(m.texto) : (m.modo === 'facil' ? `${m.texto.replace(/ /g, '').length} letras · fácil` : 'difícil');
-      return `<div class="item" data-id="${esc(m.id)}"><div class="q"><b>${esc(m.de)}</b><small>${txt} · ${hace(fecha(m.creado))}</small></div>${est}</div>`;
-    }).join('') : '<div class="vacio">No tienes mensajes todavía.<br>Pide a un compañero que te escriba a <b>' + esc(this.yo || '') + '</b>.</div>';
-    $('m-enviados').innerHTML = env.length ? env.map(m => {
-      const est = m.estado === 'resuelto'
-        ? `<span class="estado hecho">${m.rendido ? 'Se rindió' : `✓ ${fallosTxt(m.fallos)} · ${mmss(m.segundos)}`}</span>`
-        : `<span class="estado curso">${Math.round((m.progreso || 0) * 100)} %${m.fallos ? ` · ${fallosTxt(m.fallos)}` : ''}</span>`;
-      return `<div class="item" data-id="${esc(m.id)}" data-env="1"><div class="q"><b>→ ${esc(m.para)}</b><small>${esc(m.texto)} · ${hace(fecha(m.creado))}</small></div>${est}</div>`;
-    }).join('') : '<div class="vacio">Aún no has enviado mensajes.</div>';
+  titulo(c) { return c.tipo === 'grupo' ? (c.nombre || 'Grupo') : (c.miembros.find(m => m !== this.yo) || c.miembros[0]); },
+  sinLeer(c) { return c.ultimo?.de && c.ultimo.de !== this.yo && fecha(c.ultimo.ts) > (this.visto[this.yo + '|' + c.id] || 0); },
+  pintarBadge() { const n = this.yo ? this.chats.filter(c => this.sinLeer(c)).length : 0; $('badge').hidden = !n; $('badge').textContent = n; },
+  pintarLista() {
+    const l = [...this.chats].sort((a, b) => fecha(b.ultimo?.ts) - fecha(a.ultimo?.ts));
+    $('m-chats').innerHTML = l.length ? l.map(c => {
+      const ult = c.ultimo?.de ? `${c.ultimo.de === this.yo ? 'Tú' : esc(c.ultimo.de)} · ${hace(fecha(c.ultimo.ts))}` : '';
+      const sub = c.tipo === 'grupo' ? `👥 ${c.miembros.length} · ${ult}` : ult;
+      return `<div class="item" data-id="${esc(c.id)}"><div class="q"><b>${c.tipo === 'grupo' ? '👥 ' : ''}${esc(this.titulo(c))}</b><small>${sub}</small></div>${this.sinLeer(c) ? '<span class="estado nuevo">Nuevo</span>' : ''}</div>`;
+    }).join('') : `<div class="vacio">Aún no tienes chats.<br>Empieza uno con un compañero o crea un grupo.<br>Tu indicativo es <b>${esc(this.yo || '')}</b>.</div>`;
     $('nv-contactos').innerHTML = this.contactos.map(c => `<option value="${esc(c)}">`).join('');
+    this.pintarBadge();
   },
-  sub(s) {
-    document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.sub === s));
-    ['recibidos', 'enviados', 'nuevo'].forEach(x => $('m-' + x).hidden = x !== s);
+  // ---- crear chats
+  formNuevo(grupo) {
+    this.nuevoGrupo = grupo;
+    $('nv-titulo').textContent = grupo ? 'Nuevo grupo' : 'Nuevo chat';
+    $('nv-grupo-campos').hidden = !grupo;
+    $('nv-para-label').textContent = grupo ? 'Indicativos de los compañeros (separados por espacios o comas)' : 'Indicativo de tu compañero';
+    $('nv-para').value = ''; $('nv-nombre').value = '';
+    this.vista('nuevo'); (grupo ? $('nv-nombre') : $('nv-para')).focus();
+  },
+  async crear() {
+    const calls = [...new Set($('nv-para').value.toUpperCase().split(/[\s,;]+/).filter(Boolean))].filter(c => c !== this.yo);
+    if (!calls.length) return toast(this.nuevoGrupo ? 'Escribe al menos un indicativo.' : 'Escribe el indicativo.');
+    if (!this.nuevoGrupo && calls.length > 1) return toast('Para varios compañeros, crea un grupo.');
+    const nombre = $('nv-nombre').value.trim();
+    if (this.nuevoGrupo && !nombre) return toast('Pon un nombre al grupo.');
+    $('nv-crear').disabled = true;
+    try {
+      const faltan = [];
+      for (const c of calls) if (!(await Red.existe(c))) faltan.push(c);
+      if (faltan.length) throw new Error(`${faltan.join(', ')} no ${faltan.length > 1 ? 'tienen' : 'tiene'} cuenta en la app.`);
+      const miembros = [this.yo, ...calls];
+      const id = this.nuevoGrupo ? null : 'ind_' + [...miembros].sort().join('_');
+      const cid = await Red.crearChat({ id, tipo: this.nuevoGrupo ? 'grupo' : 'individual', nombre, miembros }, this.yo);
+      this.contactos = [...new Set([...calls, ...this.contactos])].slice(0, 30); guardar('morse-contactos', this.contactos);
+      this.abrirChat(cid);
+    } catch (e) { toast(e.message); }
+    $('nv-crear').disabled = false;
+  },
+  // ---- conversación abierta
+  abrirChat(cid) {
+    this.cerrarChat(true);
+    this.abierto = cid; this.mensajes = [];
+    $('ch-info').hidden = true;
+    this.vista('chat'); this.pintarCabecera();
+    this.quitarChat = Red.escucharMensajes(cid, l => { this.mensajes = l; this.pintarChat(); });
+  },
+  cerrarChat(silencioso) {
+    this.quitarChat?.(); this.quitarChat = null; this.abierto = null; this.mensajes = [];
+    if (!silencioso) { this.vista('lista'); this.pintarLista(); }
+  },
+  chat() { return this.chats.find(c => c.id === this.abierto); },
+  pintarCabecera() {
+    const c = this.chat(); if (!c) return;
+    $('ch-titulo').textContent = (c.tipo === 'grupo' ? '👥 ' : '') + this.titulo(c);
+    $('ch-sub').textContent = c.tipo === 'grupo' ? c.miembros.join(', ') : 'Chat individual';
+    $('ch-info-btn').hidden = c.tipo !== 'grupo';
+    if (!$('ch-info').hidden) this.pintarInfo();
+  },
+  pintarInfo() {
+    const c = this.chat(), admin = c.creador === this.yo;
+    $('ch-info').innerHTML = `<b>Miembros</b><p>${c.miembros.map(m => esc(m) + (m === c.creador ? ' (creador)' : '')).join(' · ')}</p>
+      ${admin ? `<div class="fila" style="flex-wrap:nowrap"><input type="text" id="ch-anadir-c" placeholder="Añadir indicativo" autocapitalize="characters"><button id="ch-anadir">＋</button></div>` : ''}
+      <div class="fila" style="margin-top:10px"><button id="ch-salir-grupo">🚪 Salir del grupo</button></div>`;
+    if (admin) $('ch-anadir').onclick = () => this.anadirMiembro();
+    $('ch-salir-grupo').onclick = () => this.salirGrupo();
+  },
+  async anadirMiembro() {
+    const call = $('ch-anadir-c').value.trim().toUpperCase(), c = this.chat();
+    if (!call || c.miembros.includes(call)) return;
+    try {
+      if (!(await Red.existe(call))) throw new Error(`${call} no tiene cuenta en la app.`);
+      await Red.cambiarMiembros(c.id, [...c.miembros, call]); toast(`${call} añadido al grupo`);
+    } catch (e) { toast(e.message); }
+  },
+  async salirGrupo() {
+    const c = this.chat();
+    if (!confirm(`¿Salir del grupo «${c.nombre}»? Dejarás de ver sus mensajes.`)) return;
+    try { const id = c.id; this.cerrarChat(); await Red.cambiarMiembros(id, c.miembros.filter(m => m !== this.yo)); } catch (e) { toast(e.message); }
+  },
+  // Estado de un mensaje para una persona: null (sin abrir), {p, f} (en curso), {ok} o {r}.
+  hecho: r => !!(r && (r.ok || r.r)),
+  estadoDe(r) {
+    if (!r) return '⏳';
+    if (r.ok) return `✓ ${r.f ? `(${r.f})` : ''}`.trim();
+    if (r.r) return '🏳';
+    return `${Math.round((r.p || 0) * 100)} %`;
+  },
+  pendientes() { return this.mensajes.filter(m => m.de !== this.yo && !this.hecho(m.resueltos?.[this.yo])); },
+  pintarChat() {
+    const c = this.chat(); if (!c) return;
+    this.visto[this.yo + '|' + c.id] = Math.max(this.visto[this.yo + '|' + c.id] || 0, fecha(c.ultimo?.ts)); guardar('morse-visto', this.visto);
+    const grupo = c.tipo === 'grupo';
+    const otros = m => c.miembros.filter(x => x !== m.de);
+    $('ch-mensajes').innerHTML = this.mensajes.length ? this.mensajes.map(m => {
+      const mio = m.de === this.yo, r = m.resueltos || {}, yoHecho = this.hecho(r[this.yo]);
+      const quien = otros(m).map(x => `<span>${esc(x)} ${this.estadoDe(r[x])}</span>`).join(' ');
+      if (mio) {
+        return `<div class="burbuja mia"><div class="txt">${esc(m.texto)}</div>
+          <div class="info">${quien} · ${hace(fecha(m.creado))}</div></div>`;
+      }
+      if (yoHecho) {
+        const mi = r[this.yo];
+        return `<div class="burbuja"><div class="de">${esc(m.de)}</div><div class="txt">${esc(m.texto)}</div>
+          <div class="info">${mi.ok ? `✓ tú ${fallosTxt(mi.f)}${mi.s ? ` · ${mmss(mi.s)}` : ''}` : '🏳 te rendiste'}${grupo ? ' · ' + quien : ''} · <a href="#" data-oir="${esc(m.id)}">🔊</a></div></div>`;
+      }
+      const pista = m.modo === 'facil' ? `${m.texto.replace(/ /g, '').length} letras · fácil` : 'difícil';
+      const p = r[this.yo]?.p ? ` · llevas ${Math.round(r[this.yo].p * 100)} %` : '';
+      return `<div class="burbuja bloq" data-desc="${esc(m.id)}"><div class="de">${esc(m.de)}</div>
+        <div class="txt">🔒 Mensaje en Morse</div><div class="info">${pista}${p} · ${hace(fecha(m.creado))} — toca para descifrar</div></div>`;
+    }).join('') : '<div class="vacio">Aún no hay mensajes. ¡Escribe el primero!</div>';
+    // Para responder hay que descifrar antes lo que te han mandado.
+    const pend = this.pendientes();
+    $('ch-bloqueo').hidden = !pend.length; $('ch-escribir').hidden = !!pend.length;
+    if (pend.length) $('ch-bloqueo').innerHTML = `🔒 Descifra ${pend.length === 1 ? `el mensaje de ${esc(pend[0].de)}` : `los ${pend.length} mensajes pendientes`} para poder responder.
+      <button class="pri" id="ch-ir-desc">Descifrar</button>`;
+    if (pend.length) $('ch-ir-desc').onclick = () => Desc.abrir(pend[0], c.id);
+    requestAnimationFrame(() => { $('main').scrollTop = $('main').scrollHeight; });
   },
   async enviar() {
-    const para = $('nv-para').value.trim().toUpperCase(), texto = normalizar($('nv-texto').value).slice(0, MAX_TEXTO);
-    const modo = document.querySelector('input[name=nv-modo]:checked').value;
-    if (!para) return toast('Escribe a quién va.');
+    const texto = normalizar($('nv-texto').value).slice(0, MAX_TEXTO), modo = $('nv-modo').value;
     if (!texto) return toast('Escribe el mensaje.');
+    if (this.pendientes().length) return toast('Antes descifra lo que te han mandado.');
     $('nv-enviar').disabled = true;
-    try {
-      if (!(await Red.existe(para))) throw new Error(`${para} no tiene cuenta en la app.`);
-      await Red.enviar({ de: this.yo, para, texto, modo, estado: 'pendiente', fallos: 0, progreso: 0 });
-      this.contactos = [para, ...this.contactos.filter(c => c !== para)].slice(0, 20);
-      guardar('morse-contactos', this.contactos);
-      $('nv-texto').value = ''; $('nv-cuenta').textContent = 0;
-      toast(`Enviado a ${para}`); this.sub('enviados');
-    } catch (e) { toast(e.message); }
+    try { await Red.enviar(this.abierto, { de: this.yo, texto, modo }); $('nv-texto').value = ''; $('nv-cuenta').textContent = 0; }
+    catch (e) { toast(e.message); }
     $('nv-enviar').disabled = false;
-  },
-  async borrarEnviado(m) {
-    if (!confirm(`¿Borrar el mensaje a ${m.para}? Desaparece también para tu compañero.`)) return;
-    try { await Red.borrar(m.id); } catch (e) { toast(e.message); }
   }
 };
 
@@ -1643,9 +1832,20 @@ $('nv-max').textContent = MAX_TEXTO;
 $('nv-texto').oninput = () => { $('nv-cuenta').textContent = normalizar($('nv-texto').value).length; };
 $('nv-oir').onclick = () => { const t = normalizar($('nv-texto').value); if (t) Sonido.reproducir(t); };
 $('nv-enviar').onclick = () => Msg.enviar();
-document.querySelectorAll('.seg button').forEach(b => b.onclick = () => Msg.sub(b.dataset.sub));
-$('m-recibidos').onclick = e => { const it = e.target.closest('.item'); if (it) Desc.abrir(Msg.recibidos.find(m => m.id === it.dataset.id)); };
-$('m-enviados').onclick = e => { const it = e.target.closest('.item'); if (it) Msg.borrarEnviado(Msg.enviados.find(m => m.id === it.dataset.id)); };
+$('m-nuevo-ind').onclick = () => Msg.formNuevo(false);
+$('m-nuevo-grupo').onclick = () => Msg.formNuevo(true);
+$('nv-cancelar').onclick = () => Msg.vista('lista');
+$('nv-crear').onclick = () => Msg.crear();
+$('nv-para').onkeydown = e => { if (e.key === 'Enter') Msg.crear(); };
+$('m-chats').onclick = e => { const it = e.target.closest('.item'); if (it) Msg.abrirChat(it.dataset.id); };
+$('ch-volver').onclick = () => Msg.cerrarChat();
+$('ch-info-btn').onclick = () => { $('ch-info').hidden = !$('ch-info').hidden; if (!$('ch-info').hidden) Msg.pintarInfo(); };
+$('ch-mensajes').onclick = e => {
+  const b = e.target.closest('[data-desc]');
+  if (b) return Desc.abrir(Msg.mensajes.find(m => m.id === b.dataset.desc), Msg.abierto);
+  const o = e.target.closest('[data-oir]');
+  if (o) { e.preventDefault(); Sonido.reproducir(Msg.mensajes.find(m => m.id === o.dataset.oir)?.texto || ''); }
+};
 $('m-salir').onclick = () => Red.salir();
 
 function datosLogin() {
@@ -1670,16 +1870,17 @@ $('lg-pass').onkeydown = e => { if (e.key === 'Enter') login('entrar'); };
 // solo aparecen las cajas que el usuario va escribiendo, y el espacio también se teclea,
 // así que no se sabe la longitud del mensaje.
 const Desc = {
-  m: null, t: [], g: [], cur: 0, fallos: 0, inicio: 0, hecho: false, guardarT: null,
-  abrir(m) {
+  m: null, cid: null, t: [], g: [], cur: 0, fallos: 0, inicio: 0, hecho: false, guardarT: null,
+  abrir(m, cid) {
     if (!m) return;
-    this.m = m; this.t = [...m.texto]; this.dificil = m.modo === 'dificil';
-    const p = leer('morse-prog-' + m.id, null);
-    this.g = p?.g || []; this.fallos = p?.fallos || 0; this.inicio = p?.inicio || 0;
+    this.m = m; this.cid = cid; this.t = [...m.texto]; this.dificil = m.modo === 'dificil';
+    const p = leer('morse-prog-' + Msg.yo + '-' + m.id, null), mio = m.resueltos?.[Msg.yo];
+    this.g = p?.g || []; this.fallos = p?.fallos || mio?.f || 0; this.inicio = p?.inicio || 0;
     if (!this.dificil) this.t.forEach((c, i) => { if (c === ' ') this.g[i] = ' '; });
-    this.hecho = m.estado === 'resuelto';
+    this.hecho = Msg.hecho(mio); this.rendido = !!mio?.r; this.segundos = mio?.s;
+    if (this.hecho) this.g = [...this.t];
     this.cur = this.libre(-1, 1);
-    $('m-main').hidden = true; $('m-desc').hidden = false;
+    Msg.vista('desc');
     $('ds-de').textContent = m.de;
     $('ds-modo').textContent = this.dificil ? 'modo difícil' : 'modo fácil';
     $('ds-vel').textContent = `${Ajustes.wpm}/${Math.min(Ajustes.efectiva, Ajustes.wpm)} ppm · ${Ajustes.tono} Hz`;
@@ -1687,10 +1888,11 @@ const Desc = {
       ? 'Escribe de corrido lo que oyes, con espacios entre palabras. Lo acertado se queda en verde.'
       : 'Toca una casilla para oír solo esa letra. Lo acertado se queda en verde; lo rojo puedes cambiarlo.';
     $('ds-tablero').className = 'tablero' + (this.dificil ? ' dificil' : '');
-    this.pintar(); window.scrollTo(0, 0);
+    this.pintar();
     if (!this.hecho) this.enfocar();
   },
-  cerrar() { Sonido.parar(); this.m = null; $('m-desc').hidden = true; $('m-main').hidden = false; Msg.pintar(); },
+  // Al salir se manda ya el avance que estuviera pendiente de guardar.
+  cerrar() { Sonido.parar(); this.enviarPendiente?.(); this.m = null; Msg.vista('chat'); Msg.pintarChat(); },
   ok(i) { return i < this.t.length && this.g[i] === this.t[i]; },
   // Siguiente (dir=1) o anterior (dir=-1) posición sin acertar a partir de i.
   libre(i, dir) {
@@ -1710,7 +1912,7 @@ const Desc = {
     if (!this.inicio) this.inicio = Date.now();
     const i = this.cur;
     this.g[i] = c;
-    if (this.ok(i)) this.pop = i; else this.fallos++;
+    if (this.ok(i)) this.pop = i; else { this.fallos++; Sonido.error(); }
     this.cur = this.libre(i, 1);
     this.cambio();
   },
@@ -1722,23 +1924,26 @@ const Desc = {
     while (this.dificil && this.g.length && this.g[this.g.length - 1] == null) this.g.length--;
     this.cambio();
   },
+  // Guarda el avance en el aparato y, cada poco, en el servidor para que los demás lo vean.
   cambio() {
-    guardar('morse-prog-' + this.m.id, { g: this.g, fallos: this.fallos, inicio: this.inicio });
+    guardar('morse-prog-' + Msg.yo + '-' + this.m.id, { g: this.g, fallos: this.fallos, inicio: this.inicio });
     if (this.completo()) return this.terminar(false);
     this.pintar();
     clearTimeout(this.guardarT);
-    this.guardarT = setTimeout(() => Red.actualizar(this.m.id, { progreso: this.progreso(), fallos: this.fallos }).catch(() => {}), 1500);
+    const m = this.m, cid = this.cid, datos = { p: this.progreso(), f: this.fallos };
+    this.enviarPendiente = () => { clearTimeout(this.guardarT); this.enviarPendiente = null; Red.resolver(cid, m.id, Msg.yo, datos).catch(() => {}); };
+    this.guardarT = setTimeout(this.enviarPendiente, 1500);
   },
   async terminar(rendido) {
-    clearTimeout(this.guardarT);
-    this.hecho = true; Sonido.parar();
-    if (rendido) this.g = [...this.t];
-    else this.g.length = this.t.length;
-    const segundos = this.inicio ? (Date.now() - this.inicio) / 1000 : 0;
+    clearTimeout(this.guardarT); this.enviarPendiente = null;
+    this.hecho = true; this.rendido = rendido; Sonido.parar();
+    const p = this.progreso();
+    this.g = [...this.t];
+    this.segundos = this.inicio ? Math.round((Date.now() - this.inicio) / 1000) : 0;
     this.pintar();
     if (!rendido) { navigator.vibrate?.([40, 40, 40, 40, 200]); setTimeout(() => Sonido.reproducir('R'), 300); }
     try {
-      await Red.actualizar(this.m.id, { estado: 'resuelto', progreso: rendido ? this.progreso() : 1, fallos: this.fallos, segundos: Math.round(segundos), resuelto: Red.ahora(), rendido });
+      await Red.resolver(this.cid, this.m.id, Msg.yo, rendido ? { p, f: this.fallos, s: this.segundos, r: true } : { p: 1, f: this.fallos, s: this.segundos, ok: true });
     } catch (e) { toast('No se pudo guardar el resultado: ' + e.message); }
   },
   pintar() {
@@ -1767,17 +1972,16 @@ const Desc = {
     const fin = $('ds-final');
     fin.hidden = !this.hecho;
     if (this.hecho) {
-      const m = this.m, seg = m.segundos ?? (this.inicio ? (Date.now() - this.inicio) / 1000 : 0);
-      fin.innerHTML = `<h2>${m.rendido ? 'El mensaje era' : '¡Descifrado! 🎉'}</h2><p class="final">${esc(m.texto)}</p>
+      const seg = this.segundos;
+      fin.innerHTML = `<h2>${this.rendido ? 'El mensaje era' : '¡Descifrado! 🎉'}</h2><p class="final">${esc(this.m.texto)}</p>
         <p class="muted">${fallosTxt(this.fallos)}${seg ? ` · ${mmss(seg)}` : ''}</p>
-        <div class="fila"><button id="ds-contestar" class="pri">↩ Contestar a ${esc(m.de)}</button><button id="ds-ocultar">Quitar de la lista</button></div>`;
-      $('ds-contestar').onclick = () => { $('nv-para').value = m.de; this.cerrar(); Msg.sub('nuevo'); $('nv-texto').focus(); };
-      $('ds-ocultar').onclick = () => { Msg.ocultos.add(m.id); guardar('morse-ocultos', [...Msg.ocultos]); this.cerrar(); };
+        <div class="fila"><button id="ds-responder" class="pri">↩ Volver al chat y responder</button></div>`;
+      $('ds-responder').onclick = () => { this.cerrar(); if (!$('ch-escribir').hidden) $('nv-texto').focus(); };
     }
   },
   enfocar() { const c = $('ds-captura'); c.value = '##'; c.focus({ preventScroll: true }); c.setSelectionRange(2, 2); },
   oir() {
-    if (!this.inicio && !this.hecho) { this.inicio = Date.now(); guardar('morse-prog-' + this.m.id, { g: this.g, fallos: this.fallos, inicio: this.inicio }); }
+    if (!this.inicio && !this.hecho) { this.inicio = Date.now(); guardar('morse-prog-' + Msg.yo + '-' + this.m.id, { g: this.g, fallos: this.fallos, inicio: this.inicio }); }
     // En modo fácil se marca la casilla que va sonando; en difícil eso delataría la longitud.
     const marcar = this.dificil && !this.hecho ? null : i => {
       document.querySelectorAll('.caja.suena').forEach(c => c.classList.remove('suena'));
@@ -1813,6 +2017,41 @@ $('ds-parar').onclick = () => Sonido.parar();
 $('ds-volver').onclick = () => Desc.cerrar();
 $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará como no resuelto.')) Desc.terminar(true); };
 
+// ---------------------------------------------------------------- novedades y actualizaciones
+// Al abrir una versión nueva se enseña qué ha cambiado desde la última que se vio.
+// Si la app lleva rato abierta y se publica otra, se avisa para recargar.
+const NOVEDADES = [
+  ['0.9.0', ['Chats individuales y de grupo: cada mensaje llega en Morse y, al descifrarlo, aparece en la conversación.',
+    'En los grupos ves quién ha descifrado cada mensaje y con cuántos fallos.',
+    'Para responder, primero descifra lo que te han mandado.',
+    'Aviso de novedades al abrir una versión nueva.']],
+  ['0.8.0', ['Sonido al fallar, a elegir en Ajustes.', 'La app ya está publicada en internet.']],
+  ['0.7.0', ['Ejercicios con tiempo, puntos y récord.', 'Resultado para compartir por WhatsApp o Telegram.',
+    'Repaso adaptativo: insiste en lo que más fallas.', 'Palabras inventadas, indicativos y tus propias listas.']]
+];
+const cmpVer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
+function mostrarNovedades() {
+  const vista = leer('morse-version-vista', null);
+  guardar('morse-version-vista', App.version);
+  if (!vista || cmpVer(App.version, vista) <= 0) return;
+  const nuevas = NOVEDADES.filter(([v]) => cmpVer(v, vista) > 0 && cmpVer(v, App.version) <= 0);
+  if (!nuevas.length) return;
+  $('nov-titulo').textContent = `🎉 Novedades de la versión ${App.version}`;
+  $('nov-lista').innerHTML = nuevas.map(([v, l]) => `${nuevas.length > 1 ? `<h3>v${v}</h3>` : ''}<ul>${l.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`).join('');
+  $('nov-velo').hidden = false; $('novedades').hidden = false;
+}
+$('nov-cerrar').onclick = $('nov-velo').onclick = () => { $('nov-velo').hidden = true; $('novedades').hidden = true; };
+function vigilarActualizaciones() {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  const habia = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {});
+  // Cuando toma el control un service worker nuevo es que hay versión nueva publicada.
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (habia) $('aviso-version').hidden = false; });
+}
+$('aviso-version').onclick = () => location.reload();
+
 // ---------------------------------------------------------------- arranque
 (async function () {
   Koch.pintar(); pintarAjustes(); pintarLecciones(); pintarSignos(); Pulsar.reiniciar();
@@ -1821,10 +2060,11 @@ $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará com
   $('pw-idioma').value = leer('morse-pw-idioma', 'es'); $('pw-aprendidas').checked = leer('morse-pw-aprendidas', false);
   $('pw-movil').checked = !!Ajustes.tecladoMovil; Palabras.ponerTeclado(); Palabras.pintar(); Palabras.pintarMias();
   pintarDestino(destinoDeHash());
+  mostrarNovedades();
   $('aviso-local').hidden = Red.modo !== 'local';
   try { await Red.iniciar(); Red.onSesion(c => Msg.sesion(c)); }
   catch (e) { toast('No se pudo conectar: ' + e.message); }
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  vigilarActualizaciones();
 })();
 </script>
 </body>

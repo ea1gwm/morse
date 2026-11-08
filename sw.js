@@ -1,4 +1,4 @@
-const CACHE = 'morse-v0.8.0';
+const CACHE = 'morse-v0.9.0';
 const ASSETS = ['./', './index.html', './manifest.json', './morse-icon.svg', './morse-192.png', './morse-512.png'];
 
 self.addEventListener('install', e => {
@@ -12,8 +12,21 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 // Solo se cachean los archivos propios; Firebase va siempre a la red.
+// La página se pide primero a la red (así al abrir sale la última versión publicada)
+// y, sin conexión, se sirve la guardada. El resto, primero de la caché.
 self.addEventListener('fetch', e => {
-  if (new URL(e.request.url).origin !== location.origin) return;
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin || e.request.method !== 'GET') return;
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html')) {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        const copia = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copia));
+        return r;
+      }).catch(() => caches.match(e.request).then(r => r || caches.match('./')))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('./')))
   );
