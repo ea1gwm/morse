@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// App Morse.
+// Las cuentas son email/contraseña con el email <indicativo>@indicativos.invalid,
+// así que el indicativo de quien hace la petición sale del propio token.
+// 'indicativos' solo sirve para comprobar que el destinatario existe.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function dentro() { return request.auth != null && request.auth.token.email is string; }
+    function yo() { return request.auth.token.email.split('@')[0].upper(); }
+
+    match /indicativos/{call} {
+      allow read: if dentro();
+      allow create: if dentro() && call == yo()
+        && request.resource.data.keys().hasOnly(['creado']);
+    }
+
+    match /mensajes/{id} {
+      allow read: if dentro() && (resource.data.de == yo() || resource.data.para == yo());
+
+      allow create: if dentro()
+        && request.resource.data.keys().hasOnly(['de', 'para', 'texto', 'modo', 'estado', 'creado', 'fallos', 'progreso'])
+        && request.resource.data.de == yo()
+        && request.resource.data.para is string
+        && exists(/databases/$(database)/documents/indicativos/$(request.resource.data.para))
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 160
+        && request.resource.data.modo in ['facil', 'dificil']
+        && request.resource.data.estado == 'pendiente';
+
+      // Solo el destinatario apunta su progreso y el resultado.
+      allow update: if dentro() && resource.data.para == yo()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['estado', 'fallos', 'progreso', 'segundos', 'resuelto', 'rendido'])
+        && request.resource.data.estado in ['pendiente', 'resuelto'];
+
+      // Borrar, solo quien lo envió.
+      allow delete: if dentro() && resource.data.de == yo();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14324a">
+<title>Morse</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="morse-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="morse-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --bg: #f3f6f9; --panel: #ffffff; --text: #18222c; --muted: #5d6b78; --line: #d8e0e7;
+  --accent: #1f6fa8; --accent-text: #ffffff; --ok: #1d8a4e; --ok-bg: #dcf3e5; --bad: #c0392b; --bad-bg: #fbe1de;
+  --cur: #f0a500; --box: #eef2f6; --barra: #14324a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1820; --panel: #18242f; --text: #e6edf3; --muted: #93a3b1; --line: #2b3a47;
+    --accent: #4aa3e0; --accent-text: #0b1620; --ok: #4cc67f; --ok-bg: #173a27; --bad: #ff7466; --bad-bg: #44201c;
+    --cur: #ffbf3c; --box: #22313e; --barra: #0b2234;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+/* La app ocupa justo la pantalla: barra arriba y el resto para el contenido. */
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+header.barra { background: var(--barra); color: #fff; display: flex; align-items: center; gap: 6px; flex: none;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left)); padding-top: max(4px, env(safe-area-inset-top)); }
+header.barra h1 { font-size: 17px; margin: 0 6px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+header.barra .ver { font-size: 12px; opacity: .6; }
+.ico-btn { background: transparent; border: 0; color: inherit; font-size: 22px; line-height: 1; padding: 8px 10px; border-radius: 10px; }
+header.barra .ico-btn:active, header.barra .ico-btn.on { background: rgba(255,255,255,.15); }
+main { flex: 1; min-height: 0; overflow-y: auto; padding: 16px max(16px, env(safe-area-inset-left)) calc(16px + env(safe-area-inset-bottom)); }
+main > section { max-width: 680px; margin: 0 auto; }
+/* Pantallas de ejercicio: sin desplazamiento, el teclado se estira hasta llenar el hueco. */
+main.completa { overflow: hidden; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)); }
+main.completa > section { max-width: 1000px; height: 100%; }
+.ejercicio { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; }
+.controles { display: flex; align-items: center; gap: 8px; flex: none; }
+.controles .pl-estado { flex: 1; min-width: 0; margin: 0; }
+.controles .muted { white-space: nowrap; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.card h2 { font-size: 17px; margin: 0 0 10px; }
+.muted { color: var(--muted); font-size: 14px; }
+.fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, .btn { font: inherit; border: 1px solid var(--line); background: var(--box); color: var(--text); border-radius: 10px; padding: 10px 14px; cursor: pointer; touch-action: manipulation; }
+button.pri { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+input[type=text], input[type=password], textarea, select { font: inherit; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); }
+textarea { resize: vertical; min-height: 80px; text-transform: uppercase; font-family: ui-monospace, Consolas, monospace; }
+label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 4px; }
+input[type=range] { width: 100%; }
+label.check { display: flex; align-items: center; gap: 6px; margin: 6px 0; color: var(--text); font-size: 15px; }
+.badge { background: var(--bad); color: #fff; font-size: 12px; border-radius: 10px; padding: 1px 7px; min-width: 20px; position: absolute; top: 8px; right: 8px; }
+/* Menú de inicio */
+.inicio { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.inicio button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 8px; min-height: 112px; background: var(--panel); border-radius: 16px; font-size: 16px; font-weight: 600; }
+.inicio button .i { font-size: 34px; line-height: 1; }
+.inicio button small { font-weight: 400; color: var(--muted); font-size: 13px; }
+.inicio button.grande { grid-column: 1 / -1; flex-direction: row; gap: 16px; min-height: 90px; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.inicio button.grande small { color: inherit; opacity: .85; }
+.inicio button.grande .q { text-align: left; }
+.inicio button.grande .q > * { display: block; }
+/* Panel desplegable de opciones */
+.velo { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 30; }
+.panel { position: fixed; top: 0; right: 0; z-index: 31; width: min(420px, 100vw); max-height: 100dvh; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); border-bottom-left-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.3); padding: 0 16px 16px; padding-top: env(safe-area-inset-top); padding-right: max(16px, env(safe-area-inset-right)); }
+.panel-cab { display: flex; align-items: center; position: sticky; top: 0; background: var(--panel); padding: 8px 0; z-index: 1; }
+.panel-cab b { flex: 1; font-size: 17px; }
+.panel h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 16px 0 6px; }
+.leccion { display: flex; align-items: center; gap: 8px; }
+.leccion .q { flex: 1; min-width: 0; font-size: 15px; }
+.leccion button { padding: 8px 12px; }
+.tabla { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.tabla button { padding: 8px 4px; text-align: center; }
+.tabla b { display: block; font-size: 20px; }
+.tabla span { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--muted); letter-spacing: 1px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+.seg button { flex: 1; border: 0; border-radius: 0; background: var(--panel); }
+.seg button.on { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+/* Teclados de los ejercicios: llenan el hueco que queda (flex: 1). */
+.llena { flex: 1; min-height: 0; }
+.teclado { display: grid; grid-template-columns: repeat(var(--cols, 6), 1fr); grid-auto-rows: var(--fila, 1fr); gap: 6px; align-content: end; }
+.teclado button { padding: 0; min-height: 0; font: 700 var(--fs, 24px) ui-monospace, Consolas, monospace; }
+.qwerty { display: flex; flex-direction: column; gap: 6px; }
+.qwerty .fl { display: flex; gap: 5px; justify-content: center; flex: 1; min-height: 0; }
+.qwerty button { flex: 1; max-width: 9.4%; padding: 0; min-height: 40px; font: 700 var(--fs, 20px) ui-monospace, Consolas, monospace; }
+.qwerty.llena { justify-content: flex-end; }
+.qwerty.llena .fl { max-height: var(--fila, none); }
+.qwerty.llena button { min-height: 0; }
+.qwerty button.ancho { max-width: 16%; flex: 1.6; }
+#pl-teclado button:not(.apagada) { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent); }
+#pl-teclado button.nueva { border-width: 2px; border-color: var(--accent); }
+#pl-teclado button.apagada, #pl-teclado button.apagada:disabled { opacity: .28; cursor: default; }
+.ok-btn, #pl-teclado button.ok, .opciones button.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+#pl-teclado button.mal, .opciones button.mal { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); animation: tiembla .3s; }
+#pl-teclado button.pista, .opciones button.pista { border-color: var(--cur); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cur) 40%, transparent); }
+@keyframes tiembla { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.opciones { display: grid; grid-template-columns: repeat(var(--cols, 2), 1fr); grid-auto-rows: 1fr; gap: 8px; }
+.opciones button { font: 700 var(--fs, 26px) ui-monospace, Consolas, monospace; padding: 4px; min-height: 0; }
+.pl-estado { min-height: 1.4em; font-size: 15px; }
+.significado { min-height: 1.4em; margin: 0; font-weight: 600; color: var(--accent); flex: none; }
+.subir { flex: none; }
+.lista-q { max-height: 50vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+.lista-q .fq { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.lista-q .fq:last-child { border-bottom: 0; }
+.lista-q .fq b { font-family: ui-monospace, Consolas, monospace; min-width: 3.4em; }
+.lista-q .fq span { flex: 1; font-size: 14px; color: var(--muted); }
+.lista-q .fq button { padding: 4px 9px; }
+.escrito { flex: none; font: 700 30px ui-monospace, Consolas, monospace; letter-spacing: 6px; min-height: 48px; padding: 4px 10px; border-bottom: 2px solid var(--line); word-break: break-all; }
+.escrito .ok { color: var(--ok); } .escrito .mal { color: var(--bad); } .escrito .falta { color: var(--cur); }
+.escrito .cursor { display: inline-block; width: 2px; height: 30px; background: var(--accent); vertical-align: -4px; animation: parpadeo 1s steps(1) infinite; }
+@keyframes parpadeo { 50% { opacity: 0; } }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips span { background: var(--box); border: 1px solid var(--line); border-radius: 14px; padding: 3px 4px 3px 10px; font-family: ui-monospace, Consolas, monospace; }
+.chips button { border: 0; background: none; padding: 0 6px; color: var(--muted); }
+.resultado { font-family: ui-monospace, Consolas, monospace; font-size: 17px; letter-spacing: 2px; word-break: break-all; }
+.resultado .ok { color: var(--ok); } .resultado .mal { color: var(--bad); text-decoration: line-through; } .resultado .falta { color: var(--cur); }
+.lista .item { display: flex; gap: 10px; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.lista .item:last-child { border-bottom: 0; }
+.lista .item .q { flex: 1; min-width: 0; }
+.lista .item .q b { display: block; }
+.lista .item .q small { color: var(--muted); }
+.estado { font-size: 13px; padding: 3px 8px; border-radius: 8px; white-space: nowrap; }
+.estado.nuevo { background: var(--accent); color: var(--accent-text); }
+.estado.curso { background: var(--box); color: var(--cur); border: 1px solid var(--cur); }
+.estado.hecho { background: var(--ok-bg); color: var(--ok); }
+.vacio { text-align: center; color: var(--muted); padding: 24px 8px; }
+/* Tablero de descifrado */
+.tablero { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 8px 0; position: relative; }
+.tablero.dificil { gap: 6px; }
+.palabra { display: flex; gap: 5px; }
+.caja { width: 38px; height: 48px; border: 2px solid var(--line); background: var(--box); border-radius: 8px; display: flex; align-items: center; justify-content: center; font: 700 22px ui-monospace, Consolas, monospace; cursor: pointer; user-select: none; transition: transform .12s; }
+.caja.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.caja.mal { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+.caja.cur { border-color: var(--cur); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cur) 35%, transparent); }
+.caja.suena { transform: translateY(-4px); }
+.caja.esp { width: 22px; font-size: 14px; }
+.caja.pop { animation: pop .25s; }
+@keyframes pop { 50% { transform: scale(1.18); } }
+.captura { position: fixed; opacity: 0; width: 1px; height: 1px; left: 50%; top: 40%; border: 0; padding: 0; }
+.final { font: 700 20px ui-monospace, Consolas, monospace; letter-spacing: 2px; color: var(--ok); word-break: break-word; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--barra); color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 40; max-width: 90vw; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.aviso-local { background: var(--cur); color: #000; text-align: center; font-size: 13px; padding: 3px; flex: none; }
+.morse-txt { font-family: ui-monospace, Consolas, monospace; letter-spacing: 2px; word-break: break-all; color: var(--muted); }
+.signos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0 12px; }
+.signos b { font-family: ui-monospace, Consolas, monospace; font-size: 18px; min-width: 1em; }
+.signos .morse-txt { font-size: 13px; }
+.lecciones { max-height: 360px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+.lecciones label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 15px; cursor: pointer; }
+.lecciones label:last-child { border-bottom: 0; }
+.lecciones label.actual { background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 600; }
+.lecciones .let { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--accent); min-width: 1.5em; }
+.lecciones small { margin-left: auto; color: var(--muted); }
+.lecciones .grupo-lec { position: sticky; top: 0; background: var(--box); padding: 5px 12px; font-size: 13px; font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--line); }
+.radios label { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 15px; margin: 6px 0; }
+.radios input { margin-top: 4px; }
+header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white-space: nowrap; background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 8px; }
+.modal { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; background: var(--panel); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+#res-velo { z-index: 40; }
+.modal h2 { margin: 0 0 6px; font-size: 20px; }
+.res-puntos { font-size: 18px; color: var(--muted); }
+.res-puntos b { display: block; font-size: 56px; line-height: 1.1; color: var(--accent); }
+.res-record { font-weight: 700; color: var(--cur); margin-top: 4px; }
+.debil { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.debil b { font-family: ui-monospace, Consolas, monospace; min-width: 3.4em; }
+.debil small { color: var(--muted); min-width: 3em; text-align: right; }
+.barra-e { flex: 1; height: 10px; background: var(--box); border-radius: 5px; overflow: hidden; }
+.barra-e i { display: block; height: 100%; background: var(--bad); border-radius: 5px; }
+@media (max-width: 420px) { header.barra .ver { display: none; } }
+.ayuda h2 { margin-top: 0; }
+.ayuda p, .ayuda li { font-size: 15px; }
+/* Móvil en horizontal: barra más baja y botones de control más pequeños. */
+@media (orientation: landscape) and (max-height: 520px) {
+  header.barra h1 { font-size: 15px; }
+  .ico-btn { font-size: 19px; padding: 4px 10px; }
+  .controles button { padding: 6px 12px; }
+  .escrito { font-size: 24px; min-height: 38px; }
+  .inicio { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .inicio button { min-height: 80px; padding: 10px 6px; }
+  .inicio button .i { font-size: 26px; }
+  .inicio button.grande { min-height: 64px; }
+  .caja { width: 34px; height: 40px; font-size: 20px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="barra">
+  <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
+  <h1 id="b-titulo">📻 Morse</h1>
+  <span class="ver" id="brand-version">v0.8.0</span>
+  <span class="marcador" id="b-marcador" hidden></span>
+  <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
+  <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
+</header>
+<div class="aviso-local" id="aviso-local" hidden>Modo prueba local: los mensajes solo se ven en este navegador</div>
+
+<!-- ============ PANEL DE OPCIONES (se despliega con ⚙) ============ -->
+<div class="velo" id="velo" hidden></div>
+<div class="panel" id="panel" hidden>
+  <div class="panel-cab"><b>Opciones</b><button class="ico-btn" id="panel-cerrar" aria-label="Cerrar">✕</button></div>
+  <div data-panel="leccion">
+    <h3>Lección</h3>
+    <div class="leccion">
+      <button id="koch-menos" aria-label="Lección anterior">◀</button>
+      <div class="q"><b>Lección <span id="koch-n"></span>/<span id="koch-max"></span></b> <span class="muted" id="koch-tipo"></span></div>
+      <button id="koch-oir-nueva">🔊 <b id="koch-nueva"></b></button>
+      <button id="koch-mas" aria-label="Lección siguiente">▶</button>
+    </div>
+  </div>
+  <div data-panel="pulsar">
+    <h3>Teclas</h3>
+    <div class="seg" id="pl-disp" style="margin:0">
+      <button data-d="alfa">ABC</button><button data-d="qwerty">Teclado</button><button data-d="azar">Al azar</button>
+    </div>
+    <div class="muted" style="margin-top:6px">«Al azar» cambia el orden en cada lección, para no asociar el sonido con la posición.</div>
+    <div class="muted" id="pl-dificiles" style="margin-top:8px"></div>
+  </div>
+  <div data-panel="palabras">
+    <h3>Palabras</h3>
+    <select id="pw-idioma">
+      <option value="es">Español</option><option value="en">Inglés</option>
+      <option value="ambos">Español e inglés</option><option value="mias">Mis palabras</option>
+      <option value="inventadas">Inventadas (nunca se repiten)</option><option value="indicativos">Indicativos de radio</option>
+    </select>
+    <div class="muted" style="margin-top:4px">Las de las listas no se repiten hasta que han salido todas.</div>
+    <label class="check"><input type="checkbox" id="pw-aprendidas"> Solo palabras con las letras que ya sé</label>
+    <label class="check"><input type="checkbox" id="pw-movil"> Escribir con el teclado del móvil</label>
+    <h3>Mis palabras</h3>
+    <textarea id="pw-nueva" rows="3" placeholder="Escribe o pega tu lista: separadas por espacios, comas o en líneas" spellcheck="false"></textarea>
+    <div class="fila" style="margin-top:6px">
+      <button id="pw-anadir">＋ Añadir</button>
+      <button id="pw-borrar-todas">🗑 Quitar todas</button>
+    </div>
+    <div class="chips" id="pw-mias"></div>
+  </div>
+  <div data-panel="q">
+    <h3>Abreviaturas que practicas</h3>
+    <div class="fila" style="margin-bottom:8px">
+      <button id="q-todas">Todas</button><button id="q-ninguna">Ninguna</button>
+      <span class="muted" id="q-cuantas"></span>
+    </div>
+    <div class="lista-q" id="q-lista"></div>
+    <label>Añadir una tuya</label>
+    <div class="fila" style="flex-wrap:nowrap">
+      <input type="text" id="q-nuevo-c" placeholder="QRZ" maxlength="10" autocapitalize="characters" spellcheck="false" style="max-width:100px">
+      <input type="text" id="q-nuevo-s" placeholder="Significado" maxlength="60">
+      <button id="q-anadir">＋</button>
+    </div>
+  </div>
+  <div data-panel="comun">
+    <h3>Velocidad</h3>
+    <label style="margin-top:0">Letra: <b id="rp-wpm-v"></b> ppm · efectiva: <b id="rp-ef-v"></b> ppm</label>
+    <input type="range" id="rp-wpm" min="5" max="40" step="1" aria-label="Velocidad de la letra">
+    <input type="range" id="rp-ef" min="3" max="40" step="1" aria-label="Velocidad efectiva">
+    <h3>Duración del ejercicio</h3>
+    <select id="rp-duracion" class="sel-duracion" aria-label="Duración del ejercicio"></select>
+    <div class="fila" style="margin-top:14px">
+      <button id="panel-ajustes">⚙ Todos los ajustes</button>
+      <button id="panel-inicio">⌂ Inicio</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RESULTADO DEL EJERCICIO ============ -->
+<div class="velo" id="res-velo" hidden></div>
+<div class="modal" id="resultado" hidden role="dialog" aria-labelledby="res-titulo">
+  <h2 id="res-titulo"></h2>
+  <div class="res-puntos"><b id="res-puntos"></b> puntos</div>
+  <div class="res-record" id="res-record"></div>
+  <p id="res-datos"></p>
+  <p class="muted" id="res-dificiles"></p>
+  <div class="fila" style="justify-content:center">
+    <button class="pri" id="res-compartir">📤 Compartir</button>
+    <button id="res-wa">WhatsApp</button>
+    <button id="res-tg">Telegram</button>
+  </div>
+  <div class="fila" style="justify-content:center;margin-top:10px">
+    <button id="res-otra">↻ Otra vez</button>
+    <button id="res-cerrar">Cerrar</button>
+  </div>
+</div>
+
+<main id="main">
+  <!-- ============ INICIO ============ -->
+  <section class="vista" id="v-inicio">
+    <div class="inicio">
+      <button class="grande" data-ir="letras"><span class="i">🎓</span><span class="q"><span>Aprender letras</span><small id="ini-leccion"></small></span></button>
+      <button data-ir="q"><span class="i">📡</span>Código Q</button>
+      <button data-ir="palabras"><span class="i">🔤</span>Palabras</button>
+      <button data-ir="grupos"><span class="i">🧩</span>Grupos</button>
+      <button data-ir="escuchar"><span class="i">🔊</span>Escuchar</button>
+      <button data-ir="mensajes"><span class="i">✉</span>Mensajes<span class="badge" id="badge" hidden></span></button>
+      <button data-ir="ajustes"><span class="i">⚙</span>Ajustes</button>
+      <button data-ir="ayuda"><span class="i">❓</span>Ayuda</button>
+    </div>
+  </section>
+
+  <!-- ============ APRENDER ============ -->
+  <section class="vista" id="v-aprender" hidden>
+    <!-- Letras -->
+    <div class="ejercicio" id="ap-pulsar">
+      <div class="controles">
+        <button class="pri" id="pl-oir">▶ Empezar</button>
+        <p class="pl-estado" id="pl-estado">Pulsa Empezar y luego la letra que oigas.</p>
+        <button id="pl-ayuda" hidden>💡</button>
+      </div>
+      <button id="pl-subir" class="pri subir" hidden></button>
+      <div class="teclado llena" id="pl-teclado"></div>
+    </div>
+
+    <!-- Código Q -->
+    <div class="ejercicio" id="ap-q" hidden>
+      <div class="controles">
+        <button class="pri" id="q-oir">▶ Empezar</button>
+        <p class="pl-estado" id="q-estado">Suena una abreviatura completa: pulsa cuál es.</p>
+        <button id="q-ayuda" hidden>💡</button>
+      </div>
+      <p class="significado" id="q-signif"></p>
+      <div class="opciones llena" id="q-opciones"></div>
+    </div>
+
+    <!-- Palabras -->
+    <div class="ejercicio" id="ap-palabras" hidden>
+      <div class="controles">
+        <button class="pri" id="pw-oir">▶ Empezar</button>
+        <p class="pl-estado" id="pw-estado"></p>
+      </div>
+      <div class="escrito" id="pw-escrito"></div>
+      <input type="text" id="pw-input" hidden autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Escribe la palabra y pulsa Intro">
+      <div class="qwerty llena" id="pw-teclado"></div>
+      <div class="controles" style="justify-content:flex-end">
+        <button id="pw-solucion" hidden>💡 Solución</button>
+        <button id="pw-siguiente" hidden>⏭ Siguiente</button>
+        <button class="pri" id="pw-corregir">✔ Corregir</button>
+      </div>
+    </div>
+
+    <!-- Grupos -->
+    <div id="ap-grupos" hidden style="overflow-y:auto;height:100%">
+      <div class="card">
+        <div class="fila">
+          <button class="pri" id="koch-empezar">▶ Empezar</button>
+          <button id="koch-repetir" disabled>🔁 Repetir</button>
+          <button id="koch-parar">⏸ Parar sonido</button>
+        </div>
+        <label for="koch-resp">Escribe lo que oyes (los espacios no cuentan)</label>
+        <textarea id="koch-resp" autocomplete="off" autocapitalize="characters" spellcheck="false"></textarea>
+        <div class="fila" style="margin-top:10px"><button id="koch-corregir" disabled>✔ Corregir</button></div>
+        <div id="koch-res" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ESCUCHAR (tabla y traductor) ============ -->
+  <section class="vista" id="v-escuchar" hidden>
+    <div class="card">
+      <h2>Traductor</h2>
+      <textarea id="tr-texto" placeholder="Escribe un texto y escúchalo en Morse" autocomplete="off" spellcheck="false"></textarea>
+      <p class="morse-txt" id="tr-morse"></p>
+      <div class="fila"><button class="pri" id="tr-oir">▶ Escuchar</button><button id="tr-parar">⏹ Parar</button></div>
+    </div>
+    <div class="card">
+      <h2>Tabla de caracteres</h2>
+      <div class="muted" style="margin-bottom:10px">Toca uno para oírlo.</div>
+      <div class="tabla" id="tabla"></div>
+    </div>
+  </section>
+
+  <!-- ============ MENSAJES ============ -->
+  <section class="vista" id="v-mensajes" hidden>
+    <div id="m-login" class="card">
+      <h2>Mensajes entre compañeros</h2>
+      <div class="muted">Entra con tu indicativo (o un nombre) y una contraseña. Sirve en varios dispositivos.</div>
+      <label for="lg-call">Indicativo</label>
+      <input type="text" id="lg-call" autocapitalize="characters" autocomplete="username" spellcheck="false" maxlength="12">
+      <label for="lg-pass">Contraseña (mínimo 6)</label>
+      <input type="password" id="lg-pass" autocomplete="current-password">
+      <div class="fila" style="margin-top:14px">
+        <button class="pri" id="lg-entrar">Entrar</button>
+        <button id="lg-crear">Crear cuenta</button>
+      </div>
+      <div id="lg-error" class="muted" style="color:var(--bad);margin-top:10px"></div>
+    </div>
+
+    <div id="m-main" hidden>
+      <div class="fila" style="margin-bottom:12px">
+        <div style="flex:1">Conectado como <b id="m-yo"></b></div>
+        <button id="m-salir">Salir</button>
+      </div>
+      <div class="seg" id="m-seg">
+        <button data-sub="recibidos" class="on">Recibidos</button>
+        <button data-sub="enviados">Enviados</button>
+        <button data-sub="nuevo">✉ Nuevo</button>
+      </div>
+      <div class="card lista" id="m-recibidos"></div>
+      <div class="card lista" id="m-enviados" hidden></div>
+      <div class="card" id="m-nuevo" hidden>
+        <label for="nv-para">Para (indicativo)</label>
+        <input type="text" id="nv-para" list="nv-contactos" autocapitalize="characters" spellcheck="false" maxlength="12">
+        <datalist id="nv-contactos"></datalist>
+        <label for="nv-texto">Mensaje (máx. <span id="nv-max"></span> caracteres)</label>
+        <textarea id="nv-texto" autocomplete="off" spellcheck="false"></textarea>
+        <div class="muted"><span id="nv-cuenta">0</span> caracteres · los que no existen en Morse se quitan</div>
+        <label>Dificultad para tu compañero</label>
+        <div class="radios">
+          <label><input type="radio" name="nv-modo" value="facil" checked> <span><b>Fácil</b>: ve cuántas letras hay y dónde están los espacios</span></label>
+          <label><input type="radio" name="nv-modo" value="dificil"> <span><b>Difícil</b>: no ve nada, escribe de corrido (espacios incluidos)</span></label>
+        </div>
+        <div class="fila" style="margin-top:12px">
+          <button id="nv-oir">🔊 Probar cómo suena</button>
+          <button class="pri" id="nv-enviar">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pantalla de descifrado -->
+    <div id="m-desc" hidden>
+      <div class="fila" style="margin-bottom:12px">
+        <button id="ds-volver">← Volver</button>
+        <div style="flex:1">De <b id="ds-de"></b> · <span class="muted" id="ds-modo"></span></div>
+      </div>
+      <div class="card">
+        <div class="fila">
+          <button class="pri" id="ds-oir">▶ Escuchar</button>
+          <button id="ds-parar">⏹</button>
+          <span class="muted" id="ds-vel"></span>
+        </div>
+        <div class="muted" style="margin-top:8px" id="ds-ayuda"></div>
+        <div class="tablero" id="ds-tablero"></div>
+        <input class="captura" id="ds-captura" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
+        <div class="fila" style="justify-content:space-between;margin-top:8px">
+          <span class="muted">Fallos: <b id="ds-fallos">0</b> · <span id="ds-prog">0 %</span></span>
+          <button id="ds-rendirse">Me rindo</button>
+        </div>
+      </div>
+      <div class="card" id="ds-final" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============ AJUSTES ============ -->
+  <section class="vista" id="v-ajustes" hidden>
+    <div class="card">
+      <h2>Sonido</h2>
+      <label>Velocidad de cada letra: <b id="aj-wpm-v"></b> ppm</label>
+      <input type="range" id="aj-wpm" min="5" max="40" step="1">
+      <label>Velocidad efectiva (pausas Farnsworth): <b id="aj-ef-v"></b> ppm</label>
+      <input type="range" id="aj-ef" min="3" max="40" step="1">
+      <div class="muted">Si es menor que la de la letra, las letras suenan rápidas pero con más pausa entre ellas. Es lo recomendado para aprender.</div>
+      <label>Tono: <b id="aj-tono-v"></b> Hz</label>
+      <input type="range" id="aj-tono" min="300" max="1000" step="10">
+      <label>Volumen: <b id="aj-vol-v"></b> %</label>
+      <input type="range" id="aj-vol" min="5" max="100" step="5">
+      <div class="fila" style="margin-top:12px"><button id="aj-probar">🔊 Probar (PARIS)</button></div>
+      <label for="aj-fallo">Sonido al fallar</label>
+      <div class="fila" style="flex-wrap:nowrap">
+        <select id="aj-fallo">
+          <option value="ups">Ups (dos notas que bajan)</option>
+          <option value="boing">Boing</option>
+          <option value="zumbido">Zumbido</option>
+          <option value="pitido">Pitido doble</option>
+          <option value="pato">Graznido</option>
+          <option value="nada">Sin sonido</option>
+        </select>
+        <button id="aj-fallo-probar" aria-label="Probar el sonido de fallo">🔊</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Lecciones</h2>
+      <div class="muted" style="margin-bottom:10px">Marca las que ya sabes y continúas desde la siguiente. Cada lección añade una letra a las anteriores.</div>
+      <div class="lecciones" id="aj-lecciones"></div>
+      <label style="margin-top:14px">Signos que quieres aprender (van al final, tras los números)</label>
+      <div class="signos" id="aj-signos"></div>
+    </div>
+    <div class="card">
+      <h2>Aprendizaje</h2>
+      <label>Mostrar la ayuda tras <b id="aj-ayuda-v"></b> fallos</label>
+      <input type="range" id="aj-ayuda" min="1" max="10" step="1">
+      <label>Grupos de 5 por ejercicio (Grupos): <b id="aj-grupos-v"></b></label>
+      <input type="range" id="aj-grupos" min="2" max="20" step="1">
+      <label for="aj-duracion">Duración de cada ejercicio</label>
+      <select id="aj-duracion" class="sel-duracion"></select>
+      <label for="aj-nombre">Tu indicativo o nombre (para compartir resultados)</label>
+      <input type="text" id="aj-nombre" maxlength="20" autocapitalize="characters" spellcheck="false" placeholder="EA1ABC">
+    </div>
+    <div class="card">
+      <h2>Lo que más te cuesta</h2>
+      <div class="muted" style="margin-bottom:8px">La app repite más lo que fallas y lo que hace tiempo que no sale, hasta que lo domines.</div>
+      <div id="aj-debiles"></div>
+      <div class="fila" style="margin-top:10px"><button id="aj-reset-stats">Empezar de cero las estadísticas</button></div>
+    </div>
+  </section>
+
+  <!-- ============ AYUDA ============ -->
+  <section class="vista ayuda" id="v-ayuda" hidden>
+    <div class="card">
+      <h2>Cómo se usa</h2>
+      <p>En cada ejercicio, el botón <b>⚙</b> de arriba a la derecha despliega las opciones (lección, teclas, velocidad…) y <b>⌂</b> vuelve al inicio.</p>
+    </div>
+    <div class="card">
+      <h2>🎓 Aprender letras</h2>
+      <p>Método Koch: empiezas con dos letras (K y M) a velocidad real y añades una nueva cada lección. Pulsa <b>Empezar</b>, escucha y pulsa la letra en pantalla.</p>
+      <ul>
+        <li>Si fallas, suena otra vez la misma hasta que aciertes.</li>
+        <li>Tras varios fallos aparece <b>💡</b>, que te dice cuál es.</li>
+        <li>En color, las teclas de tu lección; apagadas, las que aún no toca.</li>
+        <li>Con un 90 % de aciertos a la primera (de las últimas 20) puedes pasar de lección.</li>
+        <li>Orden: letras, luego números y luego los signos que elijas en Ajustes.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>📡 Código Q</h2>
+      <p>Suena una abreviatura entera (QRZ, QTH, 73…) y eliges cuál es. Al acertar ves su significado. En ⚙ eliges cuáles practicar y añades las tuyas.</p>
+    </div>
+    <div class="card">
+      <h2>🔤 Palabras</h2>
+      <p>Suena una palabra en español o inglés. Escríbela con el teclado de pantalla (o el del móvil, en ⚙) y pulsa <b>Corregir</b>: lo bien sale en verde, lo mal en rojo. Puedes corregir y volver a probar.</p>
+    </div>
+    <div class="card">
+      <h2>🧩 Grupos</h2>
+      <p>Suenan grupos de 5 letras de tu lección; escríbelos y corrige. Es la práctica clásica de recepción.</p>
+    </div>
+    <div class="card">
+      <h2>✉ Mensajes</h2>
+      <p>Envía un texto a un compañero. Le suena en Morse con <i>su</i> velocidad y lo va descifrando letra a letra: lo acertado se queda en verde. Tú ves su progreso y el resultado.</p>
+    </div>
+    <div class="card">
+      <h2>Velocidad</h2>
+      <p><b>Letra</b>: lo rápido que suena cada letra. <b>Efectiva</b>: si es menor, se alargan las pausas entre letras (Farnsworth). Lo recomendado es letra rápida (18–20) y efectiva baja al principio.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script>
+'use strict';
+
+const App = { version: '0.8.0' };
+
+// Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
+// funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
+// pestaña es un usuario distinto.
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyAVBDwKCAOEKk7SvGLASPa0Ycd1j34rkJk',
+  authDomain: 'morse-ea1gwm.firebaseapp.com',
+  projectId: 'morse-ea1gwm',
+  storageBucket: 'morse-ea1gwm.firebasestorage.app',
+  messagingSenderId: '872512733965',
+  appId: '1:872512733965:web:7ccd0e05af770a0ff66644'
+};
+// Las cuentas son email/contraseña de Firebase con un email inventado a partir del
+// indicativo; nunca se envía nada a ese dominio (.invalid está reservado).
+const DOMINIO_CUENTAS = 'indicativos.invalid';
+const MAX_TEXTO = 160;
+
+// ---------------------------------------------------------------- utilidades
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function leer(clave, def) { try { const v = JSON.parse(localStorage.getItem(clave)); return v ?? def; } catch { return def; } }
+function guardar(clave, v) { try { localStorage.setItem(clave, JSON.stringify(v)); } catch {} }
+let toastT;
+function toast(msg) {
+  document.querySelector('.toast')?.remove();
+  const d = document.createElement('div'); d.className = 'toast'; d.textContent = msg;
+  document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(() => d.remove(), 3200);
+}
+function fecha(v) { return v?.toMillis ? v.toMillis() : (typeof v === 'number' ? v : 0); }
+function hace(ms) {
+  if (!ms) return '';
+  const s = (Date.now() - ms) / 1000;
+  if (s < 60) return 'ahora';
+  if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
+  return new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+}
+const fallosTxt = n => `${n || 0} ${n === 1 ? 'fallo' : 'fallos'}`;
+function mmss(seg) { seg = Math.round(seg || 0); return `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`; }
+
+// ---------------------------------------------------------------- código Morse
+const MORSE = {
+  A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---',
+  K: '-.-', L: '.-..', M: '--', N: '-.', 'Ñ': '--.--', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...',
+  T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..',
+  0: '-----', 1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....', 6: '-....', 7: '--...', 8: '---..', 9: '----.',
+  '.': '.-.-.-', ',': '--..--', '?': '..--..', '/': '-..-.', '=': '-...-', '+': '.-.-.', '-': '-....-',
+  '@': '.--.-.', "'": '.----.', '!': '-.-.--', '(': '-.--.', ')': '-.--.-', ':': '---...', ';': '-.-.-.', '"': '.-..-.'
+};
+// Orden de las lecciones: primero las letras (orden Koch), luego números y por último
+// los signos que el usuario haya elegido (por defecto los más usados en radio).
+// La lección L usa los L+1 primeros caracteres.
+const LETRAS_KOCH = 'KMRSUAPTLOWINJEFYVGQZHBCDX', NUMEROS = '1234567890', TODOS_SIGNOS = '/?.,=+-@:;()\'!"';
+let SIGNOS = [...TODOS_SIGNOS].filter(c => leer('morse-signos', '/?.,=').includes(c)).join('');
+let KOCH = LETRAS_KOCH + NUMEROS + SIGNOS;
+function elegirSigno(c, si) {
+  const sel = new Set(SIGNOS); si ? sel.add(c) : sel.delete(c);
+  SIGNOS = [...TODOS_SIGNOS].filter(x => sel.has(x)).join('');
+  KOCH = LETRAS_KOCH + NUMEROS + SIGNOS; guardar('morse-signos', SIGNOS);
+  Koch.fijar(Koch.n); pintarSignos();
+}
+function pintarSignos() {
+  $('aj-signos').innerHTML = [...TODOS_SIGNOS].map(c => `<label class="check"><input type="checkbox" data-s="${esc(c)}" ${SIGNOS.includes(c) ? 'checked' : ''}>
+    <b>${esc(c)}</b> <span class="morse-txt">${bonito(MORSE[c])}</span></label>`).join('');
+}
+const tipoDe = c => LETRAS_KOCH.includes(c) ? 'Letras' : NUMEROS.includes(c) ? 'Números' : 'Signos';
+const bonito = code => code.replace(/\./g, '·').replace(/-/g, '−');
+
+// Pasa a mayúsculas, quita tildes (salvo la Ñ) y todo lo que no existe en Morse.
+function normalizar(t) {
+  return String(t).toUpperCase().replace(/Ñ/g, '\u0001').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\u0001/g, 'Ñ').replace(/\s+/g, ' ')
+    .split('').filter(c => c === ' ' || MORSE[c]).join('').replace(/ +/g, ' ').trim();
+}
+const aMorse = t => normalizar(t).split(' ').map(p => [...p].map(c => MORSE[c]).join(' ')).join('  /  ');
+
+// ---------------------------------------------------------------- ajustes
+const Ajustes = Object.assign({ wpm: 20, efectiva: 10, tono: 600, volumen: 60, grupos: 5, ayuda: 3, duracion: 5, nombre: '', sonidoFallo: 'ups' }, leer('morse-ajustes', {}));
+function guardarAjustes() { guardar('morse-ajustes', Ajustes); }
+
+// ---------------------------------------------------------------- sonido
+const Sonido = {
+  ctx: null, osc: null, timers: [], fin: null,
+  despertar() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  // Tiempos en segundos. Con Farnsworth se alargan solo las pausas entre letras y palabras.
+  tiempos() {
+    const c = Ajustes.wpm, s = Math.min(Ajustes.efectiva, c), dit = 1.2 / c;
+    if (s >= c) return { dit, letra: 3 * dit, palabra: 7 * dit };
+    const ta = (60 * c - 37.2 * s) / (s * c);
+    return { dit, letra: 3 * ta / 19, palabra: 7 * ta / 19 };
+  },
+  // Reproduce el texto; onChar(i) se llama cuando empieza a sonar el carácter i.
+  reproducir(texto, { onChar, onFin } = {}) {
+    this.parar(); this.despertar();
+    const ctx = this.ctx, { dit, letra, palabra } = this.tiempos();
+    const vol = Ajustes.volumen / 100 * 0.5, rampa = 0.005;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.frequency.value = Ajustes.tono; g.gain.value = 0;
+    osc.connect(g).connect(ctx.destination);
+    const t0 = ctx.currentTime + 0.08;
+    let t = t0;
+    [...texto].forEach((ch, i) => {
+      if (ch === ' ') { t += palabra - letra; return; }
+      const code = MORSE[ch]; if (!code) return;
+      if (onChar) this.timers.push(setTimeout(() => onChar(i), (t - ctx.currentTime) * 1000));
+      [...code].forEach((s, j) => {
+        const d = s === '.' ? dit : 3 * dit;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + rampa);
+        g.gain.setValueAtTime(vol, t + d - rampa);
+        g.gain.linearRampToValueAtTime(0, t + d);
+        t += d; if (j < code.length - 1) t += dit;
+      });
+      t += letra;
+    });
+    osc.start(t0); osc.stop(t + 0.02);
+    this.osc = osc; this.fin = onFin || null;
+    osc.onended = () => { if (this.osc === osc) { this.osc = null; const f = this.fin; this.fin = null; f?.(); } };
+  },
+  parar() {
+    this.timers.forEach(clearTimeout); this.timers = [];
+    if (this.osc) { const o = this.osc; this.osc = null; this.fin = null; try { o.stop(); } catch {} }
+  },
+  // Sonido corto al fallar, distinto del tono Morse para no confundirse. Va en su propio
+  // oscilador, así no lo corta la repetición de la letra que suena justo después.
+  error(tipo = Ajustes.sonidoFallo) {
+    if (!tipo || tipo === 'nada') return;
+    this.despertar();
+    const ctx = this.ctx, t0 = ctx.currentTime + 0.01, vol = Ajustes.volumen / 100 * 0.4;
+    const nota = (onda, f1, f2, ini, dur, v = vol) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = onda; o.frequency.setValueAtTime(f1, t0 + ini); o.frequency.exponentialRampToValueAtTime(f2, t0 + ini + dur);
+      g.gain.setValueAtTime(0, t0 + ini); g.gain.linearRampToValueAtTime(v, t0 + ini + 0.01);
+      g.gain.setValueAtTime(v, t0 + ini + dur - 0.03); g.gain.linearRampToValueAtTime(0, t0 + ini + dur);
+      o.connect(g).connect(ctx.destination); o.start(t0 + ini); o.stop(t0 + ini + dur + 0.02);
+    };
+    if (tipo === 'zumbido') nota('square', 140, 120, 0, 0.28, vol * 0.5);
+    else if (tipo === 'boing') nota('sine', 700, 140, 0, 0.32);
+    else if (tipo === 'ups') { nota('triangle', 520, 520, 0, 0.12); nota('triangle', 370, 360, 0.14, 0.18); }
+    else if (tipo === 'pitido') { nota('sine', 1200, 1200, 0, 0.07); nota('sine', 1200, 1200, 0.11, 0.07); }
+    else if (tipo === 'pato') nota('sawtooth', 300, 180, 0, 0.22, vol * 0.45);
+  }
+};
+
+// ---------------------------------------------------------------- navegación
+// Se entra por el menú de inicio. Cada destino va en el hash de la URL (#letras, #q…),
+// así el botón «atrás» del móvil vuelve al inicio en vez de salir de la app.
+const DESTINOS = {
+  inicio: ['inicio', null, '📻 Morse'], letras: ['aprender', 'pulsar', 'Aprender letras'], q: ['aprender', 'q', 'Código Q'],
+  palabras: ['aprender', 'palabras', 'Palabras'], grupos: ['aprender', 'grupos', 'Grupos'], escuchar: ['escuchar', null, 'Escuchar'],
+  mensajes: ['mensajes', null, 'Mensajes'], ajustes: ['ajustes', null, 'Ajustes'], ayuda: ['ayuda', null, 'Ayuda']
+};
+const destinoDeHash = () => DESTINOS[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio';
+function ir(d) { if (location.hash.slice(1) === d) pintarDestino(d); else location.hash = d; }
+function pintarDestino(d) {
+  const [vista, ap, titulo] = DESTINOS[d];
+  // Salir del ejercicio lo da por terminado (y enseña el resultado).
+  if (Sesion.activa && ap !== Sesion.tipo) Sesion.terminar(false);
+  cerrarPanel(); Sonido.parar();
+  document.querySelectorAll('main > section.vista').forEach(s => s.hidden = s.id !== 'v-' + vista);
+  // Los ejercicios con teclado van a pantalla completa, sin desplazamiento.
+  $('main').classList.toggle('completa', vista === 'aprender' && ap !== 'grupos');
+  $('b-inicio').hidden = d === 'inicio'; $('b-opciones').hidden = vista !== 'aprender';
+  $('b-titulo').textContent = titulo;
+  if (ap) mostrarApartado(ap);
+  if (d === 'inicio') pintarInicio();
+  $('main').scrollTop = 0;
+}
+const mostrarVista = v => ir(v === 'aprender' ? 'letras' : v);
+addEventListener('hashchange', () => pintarDestino(destinoDeHash()));
+document.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => ir(b.dataset.ir));
+$('b-inicio').onclick = () => ir('inicio');
+function pintarInicio() { $('ini-leccion').textContent = `Lección ${Koch.n - 1} de ${KOCH.length - 1} · nueva: ${KOCH[Koch.n - 1]}`; }
+
+// Panel de opciones (⚙): muestra solo los bloques que tocan al ejercicio abierto.
+let apartadoActual = 'pulsar';
+function abrirPanel() {
+  const ap = apartadoActual;
+  document.querySelectorAll('#panel [data-panel]').forEach(p => {
+    const k = p.dataset.panel;
+    p.hidden = !(k === 'comun' || k === ap || (k === 'leccion' && (ap === 'pulsar' || ap === 'grupos')));
+  });
+  const dif = Stats.dificiles([...Pulsar.letras()], 6);
+  $('pl-dificiles').textContent = dif.length ? `Te cuestan más: ${dif.join('  ')} (saldrán más a menudo)` : '';
+  $('panel').hidden = false; $('velo').hidden = false; $('b-opciones').classList.add('on');
+}
+function cerrarPanel() {
+  if ($('panel').hidden) return;
+  $('panel').hidden = true; $('velo').hidden = true; $('b-opciones').classList.remove('on');
+  requestAnimationFrame(ajustarTeclas);
+}
+$('b-opciones').onclick = () => $('panel').hidden ? abrirPanel() : cerrarPanel();
+$('velo').onclick = cerrarPanel; $('panel-cerrar').onclick = cerrarPanel;
+$('panel-ajustes').onclick = () => ir('ajustes'); $('panel-inicio').onclick = () => ir('inicio');
+
+// Las teclas se reparten para ocupar todo el hueco: se prueban todas las columnas posibles
+// y se queda la que da teclas más grandes; la letra se escala al tamaño de la tecla.
+function ajustarTeclas() {
+  const gap = 6;
+  for (const [el, prop] of [[$('pl-teclado'), 1.15], [$('q-opciones'), 2.4]]) {
+    if (!el.offsetParent || el.classList.contains('qwerty')) continue;
+    const n = el.children.length, w = el.clientWidth, h = el.clientHeight;
+    if (!n || !w || !h) continue;
+    let cols = 1, mejor = -1;
+    for (let c = 1; c <= n; c++) {
+      const f = Math.ceil(n / c), kw = (w - gap * (c - 1)) / c, kh = (h - gap * (f - 1)) / f;
+      const lado = Math.min(kw, kh * prop);
+      if (lado > mejor + 0.5) { mejor = lado; cols = c; }
+    }
+    const f = Math.ceil(n / cols), kw = (w - gap * (cols - 1)) / cols;
+    // Que no salgan teclas mucho más altas que anchas: lo que sobre queda arriba (el teclado va abajo, al alcance del pulgar).
+    const kh = Math.min((h - gap * (f - 1)) / f, prop > 2 ? kw * 0.8 : kw * 1.35);
+    el.style.setProperty('--cols', cols); el.style.setProperty('--fila', kh + 'px');
+    el.style.setProperty('--fs', Math.round(Math.max(14, Math.min(kh * 0.5, (prop > 2 ? kw / 4.2 : kw * 0.55), 48))) + 'px');
+  }
+  for (const el of [$('pl-teclado'), $('pw-teclado')]) {
+    if (!el.offsetParent || !el.classList.contains('qwerty')) continue;
+    const f = el.children.length, kw = el.clientWidth * 0.094;
+    const kh = Math.min((el.clientHeight - gap * (f - 1)) / f, Math.max(kw * 2.4, 44));
+    el.style.setProperty('--fila', kh + 'px');
+    el.style.setProperty('--fs', Math.round(Math.max(14, Math.min(kh * 0.5, kw * 0.6, 36))) + 'px');
+  }
+}
+addEventListener('resize', () => requestAnimationFrame(ajustarTeclas));
+
+// ---------------------------------------------------------------- repaso adaptativo
+// De cada carácter (y de cada abreviatura, con clave "Q:…") se guarda cuánto se falla
+// (e, media móvil entre 0 y 1) y en qué turno salió por última vez. Al elegir el siguiente
+// pesan más los que se fallan y los que hace tiempo que no salen: ninguno se queda
+// olvidado y en los difíciles se insiste hasta que se empiezan a acertar.
+const Stats = {
+  d: leer('morse-stats', {}), turno: leer('morse-turno', 0), t: null,
+  get(k) { return this.d[k] || { e: 0.35, n: 0, u: 0 }; },
+  anotar(k, fallo) {
+    const s = this.d[k] || (this.d[k] = { e: 0.35, n: 0, u: 0 });
+    s.e = s.e * 0.7 + (fallo ? 0.3 : 0); s.n++; s.u = ++this.turno;
+    clearTimeout(this.t);
+    this.t = setTimeout(() => { guardar('morse-stats', this.d); guardar('morse-turno', this.turno); }, 800);
+  },
+  peso(k) {
+    const s = this.get(k), olvido = Math.min((this.turno - s.u) / 25, 2);
+    return 0.3 + 5 * s.e + olvido + (s.n < 3 ? 0.8 : 0);
+  },
+  // Elige uno al azar, con más probabilidad cuanto más peso tenga; «evitar» no repite el anterior.
+  elegir(lista, clave = x => x, extra = () => 0, evitar = null) {
+    const ps = lista.map(x => (lista.length > 1 && clave(x) === evitar) ? 0 : Math.max(0.05, this.peso(clave(x)) + extra(x)));
+    let r = Math.random() * ps.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < lista.length; i++) if ((r -= ps[i]) <= 0) return lista[i];
+    return lista[lista.length - 1];
+  },
+  dificiles(claves, n = 6) {
+    return claves.filter(k => this.d[k]?.n >= 2 && this.d[k].e > 0.12).sort((a, b) => this.d[b].e - this.d[a].e).slice(0, n);
+  },
+  reiniciar() { this.d = {}; this.turno = 0; guardar('morse-stats', {}); guardar('morse-turno', 0); }
+};
+
+// ---------------------------------------------------------------- sesiones y puntos
+// Un ejercicio dura lo que diga Ajustes.duracion (0 = sin límite) y va sumando puntos:
+// 10 por acierto a la primera, con premio por racha y por velocidad; 3 si se acierta tras fallar.
+const Sesion = {
+  tipo: null, activa: false, inicio: 0, fin: 0, acabo: 0, aciertos: 0, fallos: 0, puntos: 0, racha: 0, mejorRacha: 0, falladas: {}, timer: null,
+  empezar(tipo) {
+    Object.assign(this, { tipo, activa: true, inicio: Date.now(), aciertos: 0, fallos: 0, puntos: 0, racha: 0, mejorRacha: 0, falladas: {} });
+    this.fin = Ajustes.duracion ? this.inicio + Ajustes.duracion * 60000 : 0;
+    clearInterval(this.timer); this.timer = setInterval(() => this.tic(), 500);
+    this.pintar();
+  },
+  acierto(primera, valor = 1) {
+    if (!this.activa) return;
+    const vel = Math.max(0.5, Math.min(Ajustes.efectiva, Ajustes.wpm) / 10);
+    this.aciertos++;
+    if (primera) {
+      this.racha++; this.mejorRacha = Math.max(this.mejorRacha, this.racha);
+      this.puntos += Math.round((10 + Math.min(this.racha - 1, 10) * 2) * vel * valor);
+    } else { this.racha = 0; this.puntos += Math.round(3 * vel * valor); }
+    this.pintar();
+  },
+  fallo(que) {
+    if (!this.activa) return;
+    this.fallos++; this.racha = 0;
+    if (que) this.falladas[que] = (this.falladas[que] || 0) + 1;
+    this.pintar();
+  },
+  tic() { if (this.activa && this.fin && Date.now() >= this.fin) this.terminar(true); else this.pintar(); },
+  segundos() { return Math.round(((this.activa ? Date.now() : this.acabo) - this.inicio) / 1000); },
+  // El marcador va en la barra de arriba, para no quitar sitio al teclado.
+  pintar() {
+    $('b-marcador').hidden = $('b-fin').hidden = !this.activa;
+    $('brand-version').hidden = this.activa;
+    if (!this.activa) return;
+    const t = this.fin ? Math.max(0, Math.ceil((this.fin - Date.now()) / 1000)) : this.segundos();
+    $('b-marcador').textContent = `⭐${this.puntos} ✗${this.fallos} ⏱${mmss(t)}`;
+  },
+  terminar(porTiempo) {
+    if (!this.activa) return;
+    this.activa = false; this.acabo = Date.now(); clearInterval(this.timer);
+    Sonido.parar(); Pulsar.parar(); Q.parar(); Palabras.parar();
+    this.pintar();
+    Resultado.mostrar({ tipo: this.tipo, porTiempo, segundos: this.segundos(), aciertos: this.aciertos, fallos: this.fallos,
+      puntos: this.puntos, mejorRacha: this.mejorRacha, falladas: this.falladas });
+  }
+};
+$('b-fin').onclick = () => Sesion.terminar(false);
+
+// ---------------------------------------------------------------- resultado y compartir
+const URL_APP = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname) ? location.origin + location.pathname : '';
+function durTxt(seg) {
+  if (seg < 60) return `${seg} segundos`;
+  const m = Math.floor(seg / 60), s = seg % 60;
+  return s < 10 || s > 50 ? `${Math.round(seg / 60)} ${Math.round(seg / 60) === 1 ? 'minuto' : 'minutos'}` : `${m} min y ${s} s`;
+}
+const Resultado = {
+  r: null,
+  mostrar(r) {
+    this.r = r;
+    const records = leer('morse-records', {}), antes = records[r.tipo] || 0;
+    r.record = r.puntos > antes && r.aciertos > 0;
+    if (r.record) { records[r.tipo] = r.puntos; guardar('morse-records', records); }
+    $('res-titulo').textContent = r.porTiempo ? '⏱ ¡Tiempo!' : `${NOMBRES_EJ[r.tipo]}: ejercicio terminado`;
+    $('res-puntos').textContent = r.puntos;
+    $('res-record').textContent = r.record ? '🏆 ¡Nuevo récord!' : `Tu récord: ${antes} puntos`;
+    $('res-datos').innerHTML = `✓ ${r.aciertos} aciertos · ✗ ${fallosTxt(r.fallos)}<br>⏱ ${mmss(r.segundos)} · 🔥 mejor racha ${r.mejorRacha}`;
+    const peores = Object.entries(r.falladas).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([c]) => c);
+    $('res-dificiles').textContent = peores.length ? `Te costaron: ${peores.join('  ')} — saldrán más a menudo hasta que las domines.` : '';
+    $('res-velo').hidden = false; $('resultado').hidden = false;
+  },
+  cerrar() { $('res-velo').hidden = true; $('resultado').hidden = true; },
+  nombre() {
+    let n = Ajustes.nombre || Msg.yo;
+    if (!n) {
+      n = (prompt('¿Tu indicativo o nombre para el mensaje?') || '').trim().toUpperCase();
+      if (n) { Ajustes.nombre = n; guardarAjustes(); pintarAjustes(); }
+    }
+    return n || 'Un operador misterioso';
+  },
+  texto() {
+    const r = this.r, q = this.nombre(), dur = durTxt(r.segundos), pts = r.puntos;
+    const f = r.fallos === 0 ? 'ni un solo fallo' : fallosTxt(r.fallos);
+    const ej = { pulsar: 'un ejercicio de Morse', q: 'un ejercicio de código Q', palabras: 'un ejercicio de palabras en Morse', grupos: 'un ejercicio de grupos en Morse' }[r.tipo];
+    const p = [
+      `📻 ${q} acaba de hacer ${ej} con ${f} en ${dur} y ${pts} puntos. ¿Serás capaz de superarlo o vas a pedir QRT? 😏`,
+      `⚡ ¡Atención, atención! ${q} ha sacado ${pts} puntos en Morse con ${f} en ${dur}. Sus vecinos ya sueñan en pitidos. ¿Te atreves a superarlo? 😂`,
+      `🏆 Reto de ${q}: ${pts} puntos en ${dur} y ${f}. Si lo superas te invita a un café… o eso dice. 73 ☕`,
+      `🎧 ${q} se ha pasado ${dur} escuchando pi-piii-pi y ha sacado ${pts} puntos con ${f}. ¿Lo superas o te quedas en el QRZ? 😜`,
+      `🤖 Última hora: ${q} acaba de descifrar ${r.aciertos} señales en ${dur}, con ${f} y ${pts} puntos. Samuel Morse estaría orgulloso. ¿Y tú qué? 😎`
+    ];
+    return p[Math.floor(Math.random() * p.length)] + (r.record ? ' 🏆 ¡Nuevo récord!' : '') + (URL_APP ? `\n${URL_APP}` : '');
+  },
+  async compartir() {
+    const t = this.texto();
+    if (navigator.share) { try { await navigator.share({ text: t }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+    try { await navigator.clipboard.writeText(t); toast('Mensaje copiado: pégalo donde quieras.'); } catch { prompt('Copia el mensaje:', t); }
+  },
+  whatsapp() { open('https://wa.me/?text=' + encodeURIComponent(this.texto()), '_blank'); },
+  telegram() {
+    const t = this.texto();
+    open(URL_APP ? `https://t.me/share/url?url=${encodeURIComponent(URL_APP)}&text=${encodeURIComponent(t.replace('\n' + URL_APP, ''))}`
+      : `https://t.me/share/url?url=${encodeURIComponent(t)}`, '_blank');
+  }
+};
+const NOMBRES_EJ = { pulsar: 'Letras', q: 'Código Q', palabras: 'Palabras', grupos: 'Grupos' };
+$('res-compartir').onclick = () => Resultado.compartir();
+$('res-wa').onclick = () => Resultado.whatsapp();
+$('res-tg').onclick = () => Resultado.telegram();
+$('res-cerrar').onclick = () => Resultado.cerrar();
+$('res-velo').onclick = () => Resultado.cerrar();
+$('res-otra').onclick = () => {
+  Resultado.cerrar();
+  ir({ pulsar: 'letras', q: 'q', palabras: 'palabras', grupos: 'grupos' }[Resultado.r.tipo]);
+  $({ pulsar: 'pl-oir', q: 'q-oir', palabras: 'pw-oir', grupos: 'koch-empezar' }[Resultado.r.tipo]).click();
+};
+
+// ---------------------------------------------------------------- aprender (Koch)
+const Koch = {
+  n: Math.min(Math.max(leer('morse-koch', 2), 2), KOCH.length),
+  ejercicio: '',
+  pintar() {
+    $('koch-n').textContent = this.n - 1; $('koch-max').textContent = KOCH.length - 1;
+    const nueva = KOCH[this.n - 1];
+    $('koch-tipo').textContent = '· ' + tipoDe(nueva);
+    $('koch-nueva').textContent = nueva;
+    $('koch-menos').disabled = this.n <= 2; $('koch-mas').disabled = this.n >= KOCH.length;
+  },
+  cambiar(d) { this.fijar(this.n + d); },
+  // n = cuántas letras entran; la lección L usa las L+1 primeras letras de KOCH.
+  fijar(n) {
+    this.n = Math.min(Math.max(n, 2), KOCH.length); guardar('morse-koch', this.n);
+    this.pintar(); pintarLecciones(); Pulsar.reiniciar();
+  },
+  generar() {
+    const letras = [...KOCH.slice(0, this.n)], nueva = letras[this.n - 1], grupos = [];
+    for (let g = 0; g < Ajustes.grupos; g++) {
+      let s = '';
+      for (let i = 0; i < 5; i++) s += Stats.elegir(letras, x => x, x => x === nueva ? 1 : 0, s.at(-1));
+      grupos.push(s);
+    }
+    return grupos.join(' ');
+  },
+  empezar() {
+    if (!Sesion.activa || Sesion.tipo !== 'grupos') Sesion.empezar('grupos');
+    this.ejercicio = this.generar();
+    $('koch-resp').value = ''; $('koch-res').innerHTML = '';
+    $('koch-repetir').disabled = false; $('koch-corregir').disabled = false;
+    $('koch-resp').focus();
+    Sonido.reproducir(this.ejercicio);
+  },
+  corregir() {
+    if (!this.ejercicio) return;
+    Sonido.parar();
+    const obj = this.ejercicio.replace(/ /g, ''), resp = normalizar($('koch-resp').value).replace(/ /g, '');
+    const acierto = Math.max(0, 1 - distancia(obj, resp) / obj.length), pct = Math.round(acierto * 100);
+    // Cada letra cuenta para el repaso y para los puntos (comparando posición a posición).
+    [...obj].forEach((c, i) => { const mal = resp[i] !== c; Stats.anotar(c, mal); mal ? Sesion.fallo(c) : Sesion.acierto(true, 0.5); });
+    let html = `<div class="resultado">${comparar(obj, resp)}</div>`;
+    html += `<p><b>${pct} %</b> de acierto. `;
+    if (pct >= 90 && this.n < KOCH.length) {
+      html += `¡Muy bien! Pasas a la lección ${this.n}: nueva letra <b>${esc(KOCH[this.n])}</b>.</p>`;
+      this.cambiar(1);
+    } else if (pct >= 90) html += '¡Has terminado todas las lecciones! 🎉</p>';
+    else html += 'Necesitas un 90 % para pasar. ¡Otra vez!</p>';
+    $('koch-res').innerHTML = html;
+    $('koch-corregir').disabled = true;
+  }
+};
+// Distancia de edición, para que una letra de más o de menos no estropee todo lo que viene detrás.
+function distancia(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// Muestra el texto correcto marcando en verde lo acertado, en rojo lo fallado y en ámbar lo que faltó.
+function comparar(obj, resp) {
+  let html = '';
+  for (let i = 0; i < obj.length; i++) {
+    if (i % 5 === 0 && i) html += ' ';
+    if (i >= resp.length) html += `<span class="falta">${esc(obj[i])}</span>`;
+    else if (resp[i] === obj[i]) html += `<span class="ok">${esc(obj[i])}</span>`;
+    else html += `<span class="mal" title="escribiste ${esc(resp[i])}">${esc(obj[i])}</span>`;
+  }
+  return html;
+}
+// Modo "pulsar la letra": suena una letra de la lección y se pulsa en pantalla.
+// Si se falla, vuelve a sonar la misma hasta acertar; tras Ajustes.ayuda fallos
+// aparece el botón de ayuda. Se cuentan los aciertos a la primera de las últimas 20.
+// Barajado reproducible: con la misma semilla sale el mismo orden. La semilla base es
+// propia de cada dispositivo y se le suma la lección, así cambia al cambiar de lección.
+const semilla = leer('morse-semilla', null) ?? (s => (guardar('morse-semilla', s), s))(Math.floor(Math.random() * 1e9));
+function barajar(lista, s) {
+  const a = [...lista];
+  const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const Pulsar = {
+  actual: null, fallos: 0, racha: [], activo: false, ultimo: null,
+  letras: () => KOCH.slice(0, Koch.n),
+  // Al cambiar de lección en mitad de un ejercicio, se sigue con las letras nuevas.
+  reiniciar() {
+    const seguir = this.activo;
+    this.actual = null; this.fallos = 0; this.racha = [];
+    this.pintar();
+    if (seguir) this.siguiente(); else this.parar();
+  },
+  parar() {
+    this.activo = false; this.actual = null;
+    $('pl-oir').textContent = '▶ Empezar'; $('pl-estado').textContent = 'Pulsa Empezar y luego la letra que oigas.';
+    this.pintarRacha();
+  },
+  // Siempre se ven todas las teclas; las de la lección van en color y el resto apagadas.
+  // La disposición puede ser alfabética, tipo teclado (QWERTY) o al azar; al azar cambia
+  // en cada lección para no asociar el sonido con la posición de la tecla.
+  pintar() {
+    const activas = new Set(this.letras()), nueva = KOCH[Koch.n - 1], el = $('pl-teclado');
+    const tecla = c => activas.has(c)
+      ? `<button data-c="${esc(c)}" class="${c === nueva ? 'nueva' : ''}">${esc(c)}</button>`
+      : `<button data-c="${esc(c)}" class="apagada" disabled>${esc(c)}</button>`;
+    const disp = Ajustes.disposicion || 'alfa';
+    document.querySelectorAll('#pl-disp button').forEach(b => b.classList.toggle('on', b.dataset.d === disp));
+    if (disp === 'qwerty') {
+      el.className = 'qwerty llena';
+      el.innerHTML = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM', SIGNOS].filter(Boolean).map(f => `<div class="fl">${[...f].map(tecla).join('')}</div>`).join('');
+    } else {
+      const todas = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + NUMEROS + SIGNOS];
+      el.className = 'teclado llena';
+      el.innerHTML = (disp === 'azar' ? barajar(todas, semilla + Koch.n) : todas).map(tecla).join('');
+    }
+    this.pintarRacha();
+    requestAnimationFrame(ajustarTeclas);
+  },
+  pintarRacha() {
+    const r = this.racha, ok = r.filter(Boolean).length;
+    $('pl-ayuda').hidden = !this.actual || this.fallos < Ajustes.ayuda;
+    const sube = r.length >= 20 && ok / r.length >= 0.9 && Koch.n < KOCH.length;
+    $('pl-subir').hidden = !sube;
+    if (sube) $('pl-subir').textContent = `🎉 ${Math.round(ok / r.length * 100)} %: pasar a la lección ${Koch.n} (letra ${KOCH[Koch.n]})`;
+  },
+  siguiente() {
+    // Más probabilidad para la letra nueva, las que fallas y las que hace rato que no salen.
+    const l = [...this.letras()], nueva = l[l.length - 1];
+    const c = Stats.elegir(l, x => x, x => x === nueva ? 1.5 : 0, this.ultimo);
+    this.actual = this.ultimo = c; this.fallos = 0;
+    document.querySelectorAll('#pl-teclado button').forEach(b => b.classList.remove('ok', 'mal', 'pista'));
+    $('pl-estado').textContent = '¿Qué letra es?';
+    this.pintarRacha();
+    setTimeout(() => this.oir(), 300);
+  },
+  oir() { if (this.actual) Sonido.reproducir(this.actual); },
+  boton: c => document.querySelector(`#pl-teclado button[data-c="${CSS.escape(c)}"]`),
+  pulsar(c) {
+    if (!this.actual) return;
+    const b = this.boton(c);
+    if (c === this.actual) {
+      Sonido.parar();
+      b.classList.add('ok');
+      Stats.anotar(c, this.fallos > 0); Sesion.acierto(this.fallos === 0);
+      this.racha.push(this.fallos === 0); if (this.racha.length > 20) this.racha.shift();
+      const code = bonito(MORSE[c]);
+      $('pl-estado').textContent = this.fallos === 0 ? `✓ ${c}  ${code}` : `✓ ${c}  ${code} (a la ${this.fallos + 1}ª)`;
+      this.actual = null; this.pintarRacha();
+      setTimeout(() => { if (this.activo) this.siguiente(); }, 700);
+    } else {
+      this.fallos++; Sesion.fallo(this.actual); Sonido.error();
+      b.classList.remove('mal'); void b.offsetWidth; b.classList.add('mal');
+      $('pl-estado').textContent = `✗ No es ${c}. Escucha otra vez…`;
+      this.pintarRacha();
+      setTimeout(() => this.oir(), 450);
+    }
+  },
+  ayuda() {
+    if (!this.actual) return;
+    this.boton(this.actual).classList.add('pista');
+    $('pl-estado').textContent = `💡 Es la ${this.actual}  ${bonito(MORSE[this.actual])}`;
+    this.oir();
+  }
+};
+$('pl-oir').onclick = () => {
+  Sonido.despertar();
+  if (!Pulsar.activo) { Sesion.empezar('pulsar'); Pulsar.activo = true; $('pl-oir').textContent = '🔁 Repetir'; Pulsar.siguiente(); }
+  else Pulsar.oir();
+};
+$('pl-disp').onclick = e => { const b = e.target.closest('button'); if (!b) return; Ajustes.disposicion = b.dataset.d; guardarAjustes(); Pulsar.pintar(); };
+$('pl-teclado').onclick = e => { const b = e.target.closest('button'); if (b) Pulsar.pulsar(b.dataset.c); };
+$('pl-ayuda').onclick = () => Pulsar.ayuda();
+$('pl-subir').onclick = () => { Koch.cambiar(1); toast(`Lección ${Koch.n - 1}: nueva letra ${KOCH[Koch.n - 1]}`); };
+function mostrarApartado(ap) {
+  apartadoActual = ap;
+  ['pulsar', 'q', 'palabras', 'grupos'].forEach(x => $('ap-' + x).hidden = x !== ap);
+  Sonido.parar();
+  requestAnimationFrame(ajustarTeclas);
+}
+// Teclado físico en el modo pulsar.
+addEventListener('keydown', e => {
+  if ($('v-aprender').hidden || $('ap-pulsar').hidden || !$('panel').hidden || e.target.matches('input, textarea') || e.ctrlKey || e.altKey || e.metaKey) return;
+  const c = e.key.toUpperCase();
+  if (Pulsar.letras().includes(c) && c.length === 1) { e.preventDefault(); Pulsar.pulsar(c); }
+});
+
+// Lista de lecciones de Ajustes: marcar una como aprendida deja como actual la siguiente.
+function pintarLecciones() {
+  const actual = Koch.n - 1;
+  let grupo = '';
+  $('aj-lecciones').innerHTML = Array.from({ length: KOCH.length - 1 }, (_, i) => {
+    const L = i + 1, nuevas = L === 1 ? 'K M' : KOCH[L], tipo = tipoDe(KOCH[L]);
+    const cab = tipo !== grupo ? `<div class="grupo-lec">${(grupo = tipo)}</div>` : '';
+    return `${cab}<label class="${L === actual ? 'actual' : ''}"><input type="checkbox" data-l="${L}" ${L < actual ? 'checked' : ''}>
+      Lección ${L} <span class="let">${esc(nuevas)}</span><small>${L === actual ? 'actual' : L < actual ? 'aprendida' : ''}</small></label>`;
+  }).join('');
+}
+$('aj-lecciones').onchange = e => {
+  const L = +e.target.dataset.l;
+  Koch.fijar(e.target.checked ? L + 2 : L + 1);
+};
+
+$('koch-menos').onclick = () => Koch.cambiar(-1);
+$('koch-mas').onclick = () => Koch.cambiar(1);
+$('koch-oir-nueva').onclick = () => { const c = KOCH[Koch.n - 1]; Sonido.reproducir(`${c} ${c} ${c}`); };
+$('koch-empezar').onclick = () => Koch.empezar();
+$('koch-repetir').onclick = () => Koch.ejercicio && Sonido.reproducir(Koch.ejercicio);
+$('koch-parar').onclick = () => Sonido.parar();
+$('koch-corregir').onclick = () => Koch.corregir();
+
+// ---------------------------------------------------------------- código Q y abreviaturas
+const ABREV = [
+  ['CQ', 'Llamada general'], ['DE', 'De (aquí…)'], ['K', 'Adelante, cambio'], ['KN', 'Adelante, solo la estación llamada'],
+  ['AR', 'Fin de mensaje'], ['SK', 'Fin de comunicado'], ['BK', 'Interrumpo / cambio rápido'], ['R', 'Recibido'],
+  ['QRZ', '¿Quién me llama?'], ['QTH', 'Mi ubicación es…'], ['QSO', 'Comunicado, contacto'], ['QSL', 'Acuse de recibo, confirmo'],
+  ['QRM', 'Interferencias de otras estaciones'], ['QRN', 'Ruido atmosférico'], ['QRP', 'Baja potencia'], ['QRO', 'Alta potencia'],
+  ['QRT', 'Dejo de transmitir'], ['QRV', 'Estoy listo'], ['QRX', 'Espera'], ['QSY', 'Cambio de frecuencia'],
+  ['QSB', 'Desvanecimiento de la señal'], ['QRS', 'Transmite más despacio'], ['QRQ', 'Transmite más rápido'],
+  ['QRL', '¿Está ocupada la frecuencia?'], ['QRK', 'Inteligibilidad de la señal'], ['QSP', 'Retransmito'],
+  ['73', 'Saludos cordiales'], ['88', 'Besos y abrazos'], ['5NN', 'Señal 599'], ['RST', 'Legibilidad, intensidad y tono'],
+  ['TNX', 'Gracias'], ['TU', 'Gracias'], ['FB', 'Muy bien'], ['OM', 'Colega (radioaficionado)'], ['YL', 'Operadora'],
+  ['XYL', 'Esposa'], ['WX', 'El tiempo meteorológico'], ['ANT', 'Antena'], ['RIG', 'Equipo'], ['PWR', 'Potencia'],
+  ['HR', 'Aquí'], ['UR', 'Tu, vuestro'], ['ES', 'Y'], ['GM', 'Buenos días'], ['GA', 'Buenas tardes'],
+  ['GE', 'Buenas noches (al llegar)'], ['GN', 'Buenas noches (al irse)'], ['DX', 'Estación lejana'], ['PSE', 'Por favor'],
+  ['AGN', 'Otra vez'], ['OP', 'Operador'], ['NAME', 'Nombre'], ['HW', '¿Cómo me copias?'], ['CUL', 'Hasta luego'],
+  ['GL', 'Buena suerte'], ['SRI', 'Lo siento']
+];
+const Q = {
+  propias: leer('morse-q-propias', []), off: new Set(leer('morse-q-off', [])),
+  actual: null, fallos: 0, racha: [], activo: false,
+  todas() { return [...ABREV.map(([c, s]) => ({ c, s })), ...this.propias.map(([c, s]) => ({ c, s, propia: true }))]; },
+  activas() { return this.todas().filter(a => !this.off.has(a.c)); },
+  guardarSel() { guardar('morse-q-off', [...this.off]); this.pintarLista(); },
+  pintarLista() {
+    $('q-lista').innerHTML = this.todas().map(a => `<div class="fq"><input type="checkbox" data-c="${esc(a.c)}" ${this.off.has(a.c) ? '' : 'checked'}>
+      <b>${esc(a.c)}</b><span>${esc(a.s)}</span><button data-oir="${esc(a.c)}">▶</button>${a.propia ? `<button data-borrar="${esc(a.c)}">🗑</button>` : ''}</div>`).join('');
+    $('q-cuantas').textContent = `${this.activas().length} de ${this.todas().length}`;
+  },
+  anadir() {
+    const c = normalizar($('q-nuevo-c').value).replace(/ /g, ''), s = $('q-nuevo-s').value.trim();
+    if (!c) return toast('Escribe la abreviatura.');
+    this.propias = [...this.propias.filter(p => p[0] !== c), [c, s || '—']];
+    guardar('morse-q-propias', this.propias); this.off.delete(c); this.guardarSel();
+    $('q-nuevo-c').value = ''; $('q-nuevo-s').value = ''; toast(`Añadida ${c}`);
+  },
+  borrar(c) { this.propias = this.propias.filter(p => p[0] !== c); guardar('morse-q-propias', this.propias); this.off.delete(c); this.guardarSel(); },
+  siguiente() {
+    const l = this.activas();
+    if (l.length < 2) { toast('Marca al menos 2 abreviaturas en la lista.'); return false; }
+    // Salen más las que fallas y las que hace tiempo que no salen.
+    const a = Stats.elegir(l, x => 'Q:' + x.c, () => 0, this.ultimo && 'Q:' + this.ultimo);
+    this.ultimo = a.c;
+    // El acertado y hasta 5 más al azar, en orden aleatorio.
+    const otras = l.filter(x => x.c !== a.c).sort(() => Math.random() - 0.5).slice(0, 5);
+    const ops = [a, ...otras].sort(() => Math.random() - 0.5);
+    this.actual = a; this.fallos = 0;
+    $('q-opciones').innerHTML = ops.map(o => `<button data-c="${esc(o.c)}">${esc(o.c)}</button>`).join('');
+    requestAnimationFrame(ajustarTeclas);
+    $('q-estado').textContent = '¿Cuál es?'; $('q-signif').textContent = '';
+    this.pintarRacha();
+    setTimeout(() => this.oir(), 300);
+    return true;
+  },
+  pintarRacha() {
+    $('q-ayuda').hidden = !this.actual || this.fallos < Ajustes.ayuda;
+  },
+  parar() {
+    this.activo = false; this.actual = null;
+    $('q-oir').textContent = '▶ Empezar'; $('q-estado').textContent = 'Suena una abreviatura completa: pulsa cuál es.';
+    this.pintarRacha();
+  },
+  oir() { if (this.actual) Sonido.reproducir(this.actual.c); },
+  boton: c => document.querySelector(`#q-opciones button[data-c="${CSS.escape(c)}"]`),
+  pulsar(c) {
+    if (!this.actual) return;
+    const b = this.boton(c), a = this.actual;
+    if (c === a.c) {
+      Sonido.parar(); b.className = 'ok';
+      Stats.anotar('Q:' + a.c, this.fallos > 0); Sesion.acierto(this.fallos === 0, 1.5);
+      this.racha.push(this.fallos === 0); if (this.racha.length > 20) this.racha.shift();
+      $('q-estado').textContent = `✓ ${a.c}  ${bonito(aMorse(a.c))}`;
+      $('q-signif').textContent = a.s;
+      this.actual = null; this.pintarRacha();
+      setTimeout(() => { if (this.activo) this.siguiente(); }, 1800);
+    } else {
+      this.fallos++; Sesion.fallo(a.c); Sonido.error();
+      b.className = ''; void b.offsetWidth; b.className = 'mal';
+      $('q-estado').textContent = `✗ No es ${c}. Escucha otra vez…`;
+      this.pintarRacha();
+      setTimeout(() => this.oir(), 450);
+    }
+  },
+  ayuda() {
+    if (!this.actual) return;
+    this.boton(this.actual.c).classList.add('pista');
+    $('q-estado').textContent = `💡 Es ${this.actual.c}`; $('q-signif').textContent = this.actual.s;
+    this.oir();
+  }
+};
+$('q-oir').onclick = () => {
+  Sonido.despertar();
+  if (!Q.activo) { if (Q.siguiente()) { Sesion.empezar('q'); Q.activo = true; $('q-oir').textContent = '🔁 Repetir'; } }
+  else if (Q.actual) Q.oir();
+};
+$('q-opciones').onclick = e => { const b = e.target.closest('button'); if (b) Q.pulsar(b.dataset.c); };
+$('q-ayuda').onclick = () => Q.ayuda();
+$('q-lista').onclick = e => {
+  const t = e.target;
+  if (t.dataset.oir) Sonido.reproducir(t.dataset.oir);
+  else if (t.dataset.borrar) Q.borrar(t.dataset.borrar);
+};
+$('q-lista').onchange = e => { const c = e.target.dataset.c; if (e.target.checked) Q.off.delete(c); else Q.off.add(c); Q.guardarSel(); };
+$('q-todas').onclick = () => { Q.off.clear(); Q.guardarSel(); };
+$('q-ninguna').onclick = () => { Q.todas().forEach(a => Q.off.add(a.c)); Q.guardarSel(); };
+$('q-anadir').onclick = () => Q.anadir();
+$('q-nuevo-s').onkeydown = e => { if (e.key === 'Enter') Q.anadir(); };
+
+// ---------------------------------------------------------------- palabras
+const PAL_ES = ('SOL MAR LUZ PAN RIO OSO VOZ ECO PIE OJO UVA SAL MES DIA HOY AQUI ' +
+  'CASA MESA GATO PATO LUNA AGUA RAYO ROCA ISLA FARO NUBE MANO BOCA CARA HORA TREN COSA RUTA VELA ' +
+  'PERRO RADIO ONDAS BANDA CABLE SEÑAL PLAYA MONTE CIELO FUEGO NIEVE LIBRO PAPEL NOCHE TARDE ' +
+  'VERDE NEGRO BLANCO ROJO AZUL NORTE ESTE OESTE SUR LUNES MARTES ENERO MAYO JULIO AMIGO PADRE MADRE ' +
+  'ANTENA EQUIPO LLAMADA SALUDOS GRACIAS NOMBRE TIEMPO CALOR FRIO VIENTO LLUVIA TIERRA COCHE BARCO ' +
+  'AVION CIUDAD PUEBLO CALLE PUERTO MASTIL ARBOL FLOR LECHE CAFE VINO QUESO LIMON GENTE HIJO ' +
+  'CAMINO MONTAÑA VENTANA PUERTA COCINA ESCUELA MUSICA CANCION FIESTA VERANO INVIERNO OTOÑO ' +
+  'PRIMAVERA ESTRELLA PLANETA TELEFONO MENSAJE SEMANA MAÑANA DOMINGO SABADO FAMILIA').split(' ');
+const PAL_EN = ('THE AND YES NO SUN SEA DAY KEY CAT DOG CAR SKY RED HOT ONE TWO TEN ' +
+  'NAME CALL GOOD HOME TIME WIND RAIN SNOW TREE SHIP BOAT CITY TOWN ROAD LAKE HILL BAND WAVE TEST ' +
+  'COPY CODE FIVE FOUR NINE BLUE COLD WARM HAND BOOK FIRE STAR MOON BEST HERE NOW WEEK YEAR ' +
+  'RADIO POWER MORSE SPEED NIGHT HOUSE WATER PLANE TRAIN RIVER GREEN BLACK WHITE LIGHT EARTH CLOUD ' +
+  'STORM NORTH SOUTH THREE SEVEN EIGHT HELLO THANKS AGAIN PLEASE SORRY HOUR VOICE ' +
+  'SIGNAL ANTENNA REPORT WEATHER FRIEND REGARDS STATION OPERATOR MORNING EVENING MONDAY SUMMER ' +
+  'WINTER SPRING AUTUMN WINDOW GARDEN MOUNTAIN ISLAND BRIDGE MESSAGE NUMBER LETTER CONTACT').split(' ');
+const Palabras = {
+  propias: leer('morse-palabras', []),
+  objetivo: '', escrito: '', intentos: 0, racha: [], activo: false, corregido: false, resuelta: false,
+  vistas: leer('morse-pw-vistas', []),
+  movil() { return $('pw-movil').checked; },
+  letrasPermitidas() { return $('pw-aprendidas').checked ? [...KOCH.slice(0, Koch.n)] : [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ']; },
+  lista() {
+    const id = $('pw-idioma').value;
+    let l = id === 'es' ? PAL_ES : id === 'en' ? PAL_EN : id === 'ambos' ? [...PAL_ES, ...PAL_EN] : this.propias;
+    if ($('pw-aprendidas').checked) { const ok = new Set(KOCH.slice(0, Koch.n)); l = l.filter(w => [...w].every(c => ok.has(c))); }
+    return l;
+  },
+  // Palabra inventada pronunciable (sílabas consonante+vocal), nunca la misma; las letras que
+  // te cuestan salen con más frecuencia.
+  inventada() {
+    const ok = this.letrasPermitidas(), voc = ok.filter(c => 'AEIOU'.includes(c)), con = ok.filter(c => /[A-Z]/.test(c) && !'AEIOU'.includes(c));
+    let w = '';
+    if (voc.length && con.length) {
+      // Para cerrar sílaba solo consonantes que suenan naturales al final (L, N, R, S).
+      const cierre = con.filter(c => 'LNRS'.includes(c)), sil = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < sil; i++) w += Stats.elegir(con) + Stats.elegir(voc) + (cierre.length && Math.random() < 0.25 ? Stats.elegir(cierre) : '');
+    } else { const n = 3 + Math.floor(Math.random() * 3); for (let i = 0; i < n; i++) w += Stats.elegir(ok); }
+    return w;
+  },
+  // Indicativo de radio inventado: más españoles que extranjeros.
+  indicativo() {
+    const es = ['EA', 'EB', 'EC', 'ED', 'EE', 'EF', 'EG', 'EH'];
+    const fuera = ['F', 'G', 'M', 'DL', 'DJ', 'I', 'IK', 'K', 'W', 'N', 'VE', 'JA', 'PY', 'LU', 'CT', 'CS', 'ON', 'PA', 'OE', 'OH', 'SM', 'LA', 'OZ', 'SP', 'OK', 'YU', 'CE', 'XE', 'ZS', 'VK', 'ZL', '4X', '9A', 'S5', 'EI', 'HB9'];
+    const az = l => l[Math.floor(Math.random() * l.length)], L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const pre = Math.random() < 0.55 ? az(es) : az(fuera);
+    let w = pre + (/\d$/.test(pre) ? '' : az('123456789'));
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) w += az(L);
+    return w;
+  },
+  // De una lista: no se repite ninguna hasta que han salido todas (guardado entre sesiones),
+  // y entre las que quedan pesan más las que llevan letras que te cuestan.
+  deLista(l) {
+    const vistas = new Set(this.vistas);
+    let cand = l.filter(w => !vistas.has(w));
+    if (!cand.length) { this.vistas = this.vistas.filter(w => !l.includes(w)); cand = l.filter(w => w !== this.objetivo); if (!cand.length) cand = l; }
+    const w = Stats.elegir(cand, () => '', x => [...x].reduce((s, c) => s + Stats.get(c).e, 0) / x.length * 6);
+    this.vistas.push(w); if (this.vistas.length > 600) this.vistas.shift();
+    guardar('morse-pw-vistas', this.vistas);
+    return w;
+  },
+  siguiente() {
+    const id = $('pw-idioma').value;
+    let w;
+    if (id === 'inventadas') { do w = this.inventada(); while (w === this.objetivo); }
+    else if (id === 'indicativos') { do w = this.indicativo(); while (w === this.objetivo); }
+    else {
+      const l = this.lista();
+      if (!l.length) {
+        toast(id === 'mias' ? 'Añade palabras en ⚙ › Mis palabras.' : 'No hay palabras solo con tus letras: quítalo en ⚙.');
+        return false;
+      }
+      w = this.deLista(l);
+    }
+    Object.assign(this, { objetivo: w, escrito: '', intentos: 0, corregido: false, resuelta: false });
+    $('pw-input').value = '';
+    $('pw-solucion').hidden = true; $('pw-siguiente').hidden = true; $('pw-corregir').disabled = false;
+    $('pw-estado').textContent = '¿Qué palabra es?';
+    this.pintar();
+    if (this.movil()) $('pw-input').focus();
+    setTimeout(() => this.oir(), 300);
+    return true;
+  },
+  oir() { if (this.objetivo) Sonido.reproducir(this.objetivo); },
+  teclear(c) {
+    if (!this.objetivo || this.resuelta || this.escrito.length >= 20) return;
+    this.escrito += c; this.corregido = false; this.pintar();
+  },
+  borrar() { if (this.resuelta) return; this.escrito = this.escrito.slice(0, -1); this.corregido = false; this.pintar(); },
+  corregir() {
+    if (!this.objetivo || this.resuelta || !this.escrito) return;
+    const t = this.objetivo, s = this.escrito;
+    // La primera corrección cuenta para el repaso de cada letra; los fallos, letra a letra.
+    if (this.intentos === 0) [...t].forEach((c, i) => Stats.anotar(c, s[i] !== c));
+    if (s === t) {
+      this.resuelta = true; Sonido.parar();
+      Sesion.acierto(this.intentos === 0, Math.max(1, t.length / 3));
+      this.racha.push(this.intentos === 0); if (this.racha.length > 20) this.racha.shift();
+      $('pw-estado').textContent = this.intentos === 0 ? '✓ ¡Correcto a la primera!' : `✓ ¡Correcto! (intento ${this.intentos + 1})`;
+      this.terminar();
+      setTimeout(() => { if (this.activo && this.resuelta && this.objetivo === t) this.siguiente(); }, 1800);
+    } else {
+      [...t].forEach((c, i) => { if (s[i] !== c) Sesion.fallo(c); });
+      Sonido.error();
+      this.intentos++; this.corregido = true;
+      $('pw-estado').textContent = `✗ Hay letras mal. Corrige y vuelve a pulsar Corregir.`;
+      if (this.intentos >= Ajustes.ayuda) $('pw-solucion').hidden = false;
+      this.pintar();
+      setTimeout(() => this.oir(), 500);
+    }
+  },
+  solucion() {
+    this.resuelta = true; this.escrito = this.objetivo;
+    this.racha.push(false); if (this.racha.length > 20) this.racha.shift();
+    $('pw-estado').textContent = '💡 Esta era la palabra. Escúchala otra vez.';
+    this.terminar(); this.oir();
+  },
+  terminar() {
+    $('pw-solucion').hidden = true; $('pw-siguiente').hidden = false; $('pw-corregir').disabled = true;
+    this.pintar();
+  },
+  pintar() {
+    const e = $('pw-escrito'), s = this.escrito, t = this.objetivo;
+    if (this.resuelta) e.innerHTML = `<span class="ok">${esc(t)}</span>`;
+    else if (this.corregido) {
+      let h = '';
+      for (let i = 0; i < Math.max(s.length, t.length); i++)
+        h += i >= s.length ? '<span class="falta">_</span>' : `<span class="${s[i] === t[i] ? 'ok' : 'mal'}">${esc(s[i])}</span>`;
+      e.innerHTML = h;
+    } else e.innerHTML = esc(s) + '<span class="cursor"></span>';
+  },
+  parar() {
+    this.activo = false; this.objetivo = '';
+    $('pw-oir').textContent = '▶ Empezar'; $('pw-estado').textContent = '';
+    $('pw-solucion').hidden = true; $('pw-siguiente').hidden = true;
+  },
+  ponerTeclado() {
+    const m = this.movil();
+    $('pw-input').hidden = !m; $('pw-teclado').hidden = m;
+    requestAnimationFrame(ajustarTeclas);
+    Ajustes.tecladoMovil = m; guardarAjustes();
+  },
+  pintarMias() {
+    $('pw-mias').innerHTML = this.propias.length
+      ? this.propias.map(w => `<span>${esc(w)}<button data-w="${esc(w)}" aria-label="Quitar">×</button></span>`).join('')
+      : '<div class="muted">Aún no has añadido ninguna.</div>';
+  },
+  anadir() {
+    const nuevas = normalizar($('pw-nueva').value.replace(/[,;\n\r\t]/g, ' ')).split(' ').filter(Boolean);
+    if (!nuevas.length) return;
+    this.propias = [...new Set([...this.propias, ...nuevas])];
+    guardar('morse-palabras', this.propias); $('pw-nueva').value = ''; this.pintarMias();
+    toast(nuevas.length === 1 ? `Añadida ${nuevas[0]}` : `Añadidas ${nuevas.length} palabras`);
+  }
+};
+$('pw-teclado').innerHTML = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKLÑ', 'ZXCVBNM'].map((f, i) =>
+  `<div class="fl">${[...f].map(c => `<button data-c="${c}">${c}</button>`).join('')}${i === 3 ? '<button class="ancho" data-c="⌫" aria-label="Borrar">⌫</button>' : ''}</div>`).join('');
+$('pw-teclado').onclick = e => { const b = e.target.closest('button'); if (!b) return; b.dataset.c === '⌫' ? Palabras.borrar() : Palabras.teclear(b.dataset.c); };
+$('pw-input').oninput = () => {
+  Palabras.escrito = normalizar($('pw-input').value).replace(/ /g, '').slice(0, 20);
+  Palabras.corregido = false; Palabras.pintar();
+};
+$('pw-input').onkeydown = e => { if (e.key === 'Enter') Palabras.corregir(); };
+$('pw-oir').onclick = () => {
+  Sonido.despertar();
+  if (!Palabras.activo) { if (Palabras.siguiente()) { Sesion.empezar('palabras'); Palabras.activo = true; $('pw-oir').textContent = '🔁 Repetir'; } }
+  else Palabras.oir();
+};
+$('pw-corregir').onclick = () => Palabras.corregir();
+$('pw-solucion').onclick = () => Palabras.solucion();
+$('pw-siguiente').onclick = () => Palabras.siguiente();
+$('pw-movil').onchange = () => Palabras.ponerTeclado();
+$('pw-idioma').onchange = () => { guardar('morse-pw-idioma', $('pw-idioma').value); if (Palabras.activo) Palabras.siguiente(); };
+$('pw-aprendidas').onchange = () => { guardar('morse-pw-aprendidas', $('pw-aprendidas').checked); if (Palabras.activo) Palabras.siguiente(); };
+$('pw-anadir').onclick = () => Palabras.anadir();
+$('pw-borrar-todas').onclick = () => {
+  if (!Palabras.propias.length || !confirm(`¿Quitar tus ${Palabras.propias.length} palabras?`)) return;
+  Palabras.propias = []; guardar('morse-palabras', []); Palabras.pintarMias();
+};
+$('pw-mias').onclick = e => {
+  const w = e.target.dataset.w; if (!w) return;
+  Palabras.propias = Palabras.propias.filter(x => x !== w); guardar('morse-palabras', Palabras.propias); Palabras.pintarMias();
+};
+// Teclado físico en Palabras (cuando no se usa el campo de texto del móvil).
+addEventListener('keydown', e => {
+  if ($('v-aprender').hidden || $('ap-palabras').hidden || !$('panel').hidden || Palabras.movil() || e.target.matches('input, textarea, select') || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === 'Backspace') { e.preventDefault(); Palabras.borrar(); }
+  else if (e.key === 'Enter') { e.preventDefault(); Palabras.corregir(); }
+  else { const c = normalizar(e.key); if (c.length === 1 && /[A-ZÑ0-9]/.test(c)) { e.preventDefault(); Palabras.teclear(c); } }
+});
+
+// ---------------------------------------------------------------- escuchar
+$('tabla').innerHTML = Object.entries(MORSE).map(([c, m]) => `<button data-c="${esc(c)}"><b>${esc(c)}</b><span>${m.replace(/\./g, '·').replace(/-/g, '−')}</span></button>`).join('');
+$('tabla').onclick = e => { const b = e.target.closest('button'); if (b) Sonido.reproducir(b.dataset.c); };
+$('tr-texto').oninput = () => { $('tr-morse').textContent = aMorse($('tr-texto').value).replace(/\./g, '·').replace(/-/g, '−'); };
+$('tr-oir').onclick = () => { const t = normalizar($('tr-texto').value); if (t) Sonido.reproducir(t); };
+$('tr-parar').onclick = () => Sonido.parar();
+
+// ---------------------------------------------------------------- ajustes (pantalla)
+function pintarAjustes() {
+  $('aj-wpm').value = Ajustes.wpm; $('aj-wpm-v').textContent = Ajustes.wpm;
+  $('aj-ef').max = Ajustes.wpm; $('aj-ef').value = Math.min(Ajustes.efectiva, Ajustes.wpm); $('aj-ef-v').textContent = Math.min(Ajustes.efectiva, Ajustes.wpm);
+  $('aj-tono').value = Ajustes.tono; $('aj-tono-v').textContent = Ajustes.tono;
+  $('aj-vol').value = Ajustes.volumen; $('aj-vol-v').textContent = Ajustes.volumen;
+  $('aj-grupos').value = Ajustes.grupos; $('aj-grupos-v').textContent = Ajustes.grupos;
+  $('aj-ayuda').value = Ajustes.ayuda; $('aj-ayuda-v').textContent = Ajustes.ayuda;
+  // Copia rápida de la velocidad en el panel ⚙ de los ejercicios.
+  $('rp-wpm').value = Ajustes.wpm; $('rp-wpm-v').textContent = Ajustes.wpm;
+  $('rp-ef').max = Ajustes.wpm; $('rp-ef').value = Math.min(Ajustes.efectiva, Ajustes.wpm); $('rp-ef-v').textContent = Math.min(Ajustes.efectiva, Ajustes.wpm);
+  document.querySelectorAll('.sel-duracion').forEach(s => s.value = Ajustes.duracion);
+  $('aj-fallo').value = Ajustes.sonidoFallo;
+  if (document.activeElement !== $('aj-nombre')) $('aj-nombre').value = Ajustes.nombre || '';
+  pintarDebiles();
+}
+const DURACIONES = [[1, '1 minuto'], [2, '2 minutos'], [3, '3 minutos'], [5, '5 minutos'], [10, '10 minutos'], [15, '15 minutos'], [20, '20 minutos'], [30, '30 minutos'], [0, 'Sin límite (lo terminas tú con ⏹)']];
+document.querySelectorAll('.sel-duracion').forEach(s => {
+  s.innerHTML = DURACIONES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  s.onchange = () => { Ajustes.duracion = +s.value; guardarAjustes(); pintarAjustes(); };
+});
+$('aj-fallo').onchange = () => { Ajustes.sonidoFallo = $('aj-fallo').value; guardarAjustes(); Sonido.error(); };
+$('aj-fallo-probar').onclick = () => Sonido.error();
+$('aj-nombre').oninput =() => { Ajustes.nombre = normalizar($('aj-nombre').value).replace(/ /g, ''); guardarAjustes(); };
+// Las letras (y abreviaturas) que más se fallan, con una barra de 0 a 100 %.
+function pintarDebiles() {
+  const ks = Stats.dificiles([...KOCH, ...Q.todas().map(a => 'Q:' + a.c)], 10);
+  $('aj-debiles').innerHTML = ks.length ? ks.map(k => {
+    const pct = Math.round(Stats.d[k].e * 100), nom = k.startsWith('Q:') ? k.slice(2) : k;
+    return `<div class="debil"><b>${esc(nom)}</b><span class="barra-e"><i style="width:${pct}%"></i></span><small>${pct} %</small></div>`;
+  }).join('') : '<div class="muted">Aún no hay datos: haz algún ejercicio.</div>';
+}
+$('aj-reset-stats').onclick = () => { if (confirm('¿Olvidar qué letras te cuestan más? El repaso empezará de cero.')) { Stats.reiniciar(); pintarDebiles(); } };
+[['aj-wpm', 'wpm'], ['aj-ef', 'efectiva'], ['aj-tono', 'tono'], ['aj-vol', 'volumen'], ['aj-grupos', 'grupos'], ['aj-ayuda', 'ayuda'], ['rp-wpm', 'wpm'], ['rp-ef', 'efectiva']].forEach(([id, k]) => {
+  $(id).oninput = () => {
+    Ajustes[k] = +$(id).value;
+    if (k === 'wpm' && Ajustes.efectiva > Ajustes.wpm) Ajustes.efectiva = Ajustes.wpm;
+    guardarAjustes(); pintarAjustes();
+  };
+});
+$('aj-probar').onclick = () => Sonido.reproducir('PARIS PARIS');
+
+// ---------------------------------------------------------------- red: Firebase
+const RedFirebase = {
+  modo: 'firebase',
+  async iniciar() {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    this.auth = firebase.auth(); this.db = firebase.firestore();
+    try { await this.db.enablePersistence({ synchronizeTabs: true }); } catch {}
+  },
+  email: call => call.toLowerCase() + '@' + DOMINIO_CUENTAS,
+  onSesion(cb) { this.auth.onAuthStateChanged(u => cb(u ? u.email.split('@')[0].toUpperCase() : null)); },
+  async asegurarIndicativo(call) {
+    const ref = this.db.collection('indicativos').doc(call);
+    if (!(await ref.get()).exists) await ref.set({ creado: firebase.firestore.FieldValue.serverTimestamp() });
+  },
+  async registrar(call, pass) {
+    try { await this.auth.createUserWithEmailAndPassword(this.email(call), pass); }
+    catch (e) { throw new Error(this.errorAuth(e)); }
+    await this.asegurarIndicativo(call);
+  },
+  async entrar(call, pass) {
+    try { await this.auth.signInWithEmailAndPassword(this.email(call), pass); }
+    catch (e) { throw new Error(this.errorAuth(e)); }
+    await this.asegurarIndicativo(call);
+  },
+  errorAuth(e) {
+    return ({
+      'auth/email-already-in-use': 'Ese indicativo ya tiene cuenta. Usa «Entrar».',
+      'auth/invalid-credential': 'Indicativo o contraseña incorrectos.',
+      'auth/wrong-password': 'Contraseña incorrecta.',
+      'auth/user-not-found': 'Ese indicativo no tiene cuenta. Usa «Crear cuenta».',
+      'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+      'auth/too-many-requests': 'Demasiados intentos. Espera un poco.',
+      'auth/network-request-failed': 'Sin conexión.',
+      'auth/operation-not-allowed': 'Falta activar el acceso por email/contraseña en Firebase.'
+    })[e.code] || e.message;
+  },
+  salir() { return this.auth.signOut(); },
+  async existe(call) { return (await this.db.collection('indicativos').doc(call).get()).exists; },
+  escuchar(campo, yo, cb) {
+    return this.db.collection('mensajes').where(campo, '==', yo).onSnapshot(
+      s => cb(s.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))),
+      e => toast('Error al leer mensajes: ' + e.message));
+  },
+  enviar(m) { return this.db.collection('mensajes').add({ ...m, creado: firebase.firestore.FieldValue.serverTimestamp() }); },
+  actualizar(id, campos) { return this.db.collection('mensajes').doc(id).update(campos); },
+  borrar(id) { return this.db.collection('mensajes').doc(id).delete(); },
+  ahora() { return firebase.firestore.FieldValue.serverTimestamp(); }
+};
+
+// ---------------------------------------------------------------- red: prueba local
+// Simula el servidor en localStorage. La sesión va en sessionStorage, así que dos
+// pestañas pueden ser dos compañeros distintos y se avisan por BroadcastChannel.
+const RedLocal = {
+  modo: 'local', subs: new Set(), cbSesion: null,
+  db() { return leer('morse-localdb', null) || { usuarios: {}, mensajes: {} }; },
+  grabar(db) { guardar('morse-localdb', db); this.bc?.postMessage(1); this.emitir(); },
+  emitir() { this.subs.forEach(f => f()); },
+  async iniciar() {
+    this.bc = 'BroadcastChannel' in window ? new BroadcastChannel('morse-local') : null;
+    if (this.bc) this.bc.onmessage = () => this.emitir();
+    addEventListener('storage', e => { if (e.key === 'morse-localdb') this.emitir(); });
+  },
+  onSesion(cb) { this.cbSesion = cb; cb(sessionStorage.getItem('morse-local-yo')); },
+  fijar(call) { if (call) sessionStorage.setItem('morse-local-yo', call); else sessionStorage.removeItem('morse-local-yo'); this.cbSesion?.(call); },
+  async registrar(call, pass) {
+    const db = this.db();
+    if (db.usuarios[call]) throw new Error('Ese indicativo ya tiene cuenta. Usa «Entrar».');
+    if (pass.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres.');
+    db.usuarios[call] = pass; this.grabar(db); this.fijar(call);
+  },
+  async entrar(call, pass) {
+    if (this.db().usuarios[call] !== pass) throw new Error('Indicativo o contraseña incorrectos.');
+    this.fijar(call);
+  },
+  async salir() { this.fijar(null); },
+  async existe(call) { return !!this.db().usuarios[call]; },
+  escuchar(campo, yo, cb) {
+    const f = () => cb(Object.entries(this.db().mensajes).filter(([, m]) => m[campo] === yo).map(([id, m]) => ({ id, ...m })));
+    this.subs.add(f); f();
+    return () => this.subs.delete(f);
+  },
+  async enviar(m) {
+    const db = this.db(), id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    db.mensajes[id] = { ...m, creado: Date.now() }; this.grabar(db);
+  },
+  async actualizar(id, campos) { const db = this.db(); if (db.mensajes[id]) Object.assign(db.mensajes[id], campos); this.grabar(db); },
+  async borrar(id) { const db = this.db(); delete db.mensajes[id]; this.grabar(db); },
+  ahora() { return Date.now(); }
+};
+
+const Red = (FIREBASE_CONFIG && !new URLSearchParams(location.search).has('local')) ? RedFirebase : RedLocal;
+
+// ---------------------------------------------------------------- mensajes
+const Msg = {
+  yo: null, recibidos: [], enviados: [], quitar: [], primeraCarga: true,
+  ocultos: new Set(leer('morse-ocultos', [])),
+  contactos: leer('morse-contactos', []),
+  sesion(call) {
+    this.quitar.forEach(f => f()); this.quitar = [];
+    this.yo = call; this.recibidos = []; this.enviados = []; this.primeraCarga = true;
+    $('m-login').hidden = !!call; $('m-main').hidden = !call; $('m-desc').hidden = true;
+    if (!call) { this.pintar(); return; }
+    $('m-yo').textContent = call;
+    this.quitar.push(Red.escuchar('para', call, l => this.llegan(l)));
+    this.quitar.push(Red.escuchar('de', call, l => { this.enviados = l; this.pintar(); }));
+  },
+  llegan(lista) {
+    const antes = new Set(this.recibidos.map(m => m.id));
+    const nuevos = lista.filter(m => !antes.has(m.id) && m.estado === 'pendiente');
+    this.recibidos = lista;
+    if (!this.primeraCarga && nuevos.length) {
+      toast(`✉ Mensaje nuevo de ${nuevos[0].de}`);
+      navigator.vibrate?.([60, 60, 180]);
+    }
+    this.primeraCarga = false;
+    this.pintar();
+    if (Desc.m) { const m = lista.find(x => x.id === Desc.m.id); if (m) Desc.m = m; }
+  },
+  pintar() {
+    const rec = this.recibidos.filter(m => !this.ocultos.has(m.id)).sort((a, b) => fecha(b.creado) - fecha(a.creado));
+    const env = this.enviados.filter(m => !this.ocultos.has(m.id)).sort((a, b) => fecha(b.creado) - fecha(a.creado));
+    const pend = rec.filter(m => m.estado === 'pendiente').length;
+    $('badge').hidden = !pend; $('badge').textContent = pend;
+    $('m-recibidos').innerHTML = rec.length ? rec.map(m => {
+      const prog = leer('morse-prog-' + m.id, null);
+      const est = m.estado === 'resuelto' ? `<span class="estado hecho">✓ ${fallosTxt(m.fallos)}</span>`
+        : prog ? `<span class="estado curso">${Math.round((m.progreso || 0) * 100)} %</span>` : '<span class="estado nuevo">Nuevo</span>';
+      const txt = m.estado === 'resuelto' ? esc(m.texto) : (m.modo === 'facil' ? `${m.texto.replace(/ /g, '').length} letras · fácil` : 'difícil');
+      return `<div class="item" data-id="${esc(m.id)}"><div class="q"><b>${esc(m.de)}</b><small>${txt} · ${hace(fecha(m.creado))}</small></div>${est}</div>`;
+    }).join('') : '<div class="vacio">No tienes mensajes todavía.<br>Pide a un compañero que te escriba a <b>' + esc(this.yo || '') + '</b>.</div>';
+    $('m-enviados').innerHTML = env.length ? env.map(m => {
+      const est = m.estado === 'resuelto'
+        ? `<span class="estado hecho">${m.rendido ? 'Se rindió' : `✓ ${fallosTxt(m.fallos)} · ${mmss(m.segundos)}`}</span>`
+        : `<span class="estado curso">${Math.round((m.progreso || 0) * 100)} %${m.fallos ? ` · ${fallosTxt(m.fallos)}` : ''}</span>`;
+      return `<div class="item" data-id="${esc(m.id)}" data-env="1"><div class="q"><b>→ ${esc(m.para)}</b><small>${esc(m.texto)} · ${hace(fecha(m.creado))}</small></div>${est}</div>`;
+    }).join('') : '<div class="vacio">Aún no has enviado mensajes.</div>';
+    $('nv-contactos').innerHTML = this.contactos.map(c => `<option value="${esc(c)}">`).join('');
+  },
+  sub(s) {
+    document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.sub === s));
+    ['recibidos', 'enviados', 'nuevo'].forEach(x => $('m-' + x).hidden = x !== s);
+  },
+  async enviar() {
+    const para = $('nv-para').value.trim().toUpperCase(), texto = normalizar($('nv-texto').value).slice(0, MAX_TEXTO);
+    const modo = document.querySelector('input[name=nv-modo]:checked').value;
+    if (!para) return toast('Escribe a quién va.');
+    if (!texto) return toast('Escribe el mensaje.');
+    $('nv-enviar').disabled = true;
+    try {
+      if (!(await Red.existe(para))) throw new Error(`${para} no tiene cuenta en la app.`);
+      await Red.enviar({ de: this.yo, para, texto, modo, estado: 'pendiente', fallos: 0, progreso: 0 });
+      this.contactos = [para, ...this.contactos.filter(c => c !== para)].slice(0, 20);
+      guardar('morse-contactos', this.contactos);
+      $('nv-texto').value = ''; $('nv-cuenta').textContent = 0;
+      toast(`Enviado a ${para}`); this.sub('enviados');
+    } catch (e) { toast(e.message); }
+    $('nv-enviar').disabled = false;
+  },
+  async borrarEnviado(m) {
+    if (!confirm(`¿Borrar el mensaje a ${m.para}? Desaparece también para tu compañero.`)) return;
+    try { await Red.borrar(m.id); } catch (e) { toast(e.message); }
+  }
+};
+
+$('nv-max').textContent = MAX_TEXTO;
+$('nv-texto').oninput = () => { $('nv-cuenta').textContent = normalizar($('nv-texto').value).length; };
+$('nv-oir').onclick = () => { const t = normalizar($('nv-texto').value); if (t) Sonido.reproducir(t); };
+$('nv-enviar').onclick = () => Msg.enviar();
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => Msg.sub(b.dataset.sub));
+$('m-recibidos').onclick = e => { const it = e.target.closest('.item'); if (it) Desc.abrir(Msg.recibidos.find(m => m.id === it.dataset.id)); };
+$('m-enviados').onclick = e => { const it = e.target.closest('.item'); if (it) Msg.borrarEnviado(Msg.enviados.find(m => m.id === it.dataset.id)); };
+$('m-salir').onclick = () => Red.salir();
+
+function datosLogin() {
+  const call = $('lg-call').value.trim().toUpperCase(), pass = $('lg-pass').value;
+  if (!/^[A-Z0-9]{3,12}$/.test(call)) throw new Error('El indicativo debe tener de 3 a 12 letras o números, sin barras ni espacios.');
+  if (!pass) throw new Error('Escribe la contraseña.');
+  return [call, pass];
+}
+async function login(accion) {
+  $('lg-error').textContent = '';
+  try { const [c, p] = datosLogin(); await Red[accion](c, p); $('lg-pass').value = ''; }
+  catch (e) { $('lg-error').textContent = e.message; }
+}
+$('lg-entrar').onclick = () => login('entrar');
+$('lg-crear').onclick = () => login('registrar');
+$('lg-pass').onkeydown = e => { if (e.key === 'Enter') login('entrar'); };
+
+// ---------------------------------------------------------------- descifrar
+// Cada posición del texto es una caja. Una caja acertada queda fija en verde; una
+// fallada se marca en rojo y se puede volver a escribir hasta acertar.
+// En modo fácil se ven todas las cajas y los espacios vienen puestos. En modo difícil
+// solo aparecen las cajas que el usuario va escribiendo, y el espacio también se teclea,
+// así que no se sabe la longitud del mensaje.
+const Desc = {
+  m: null, t: [], g: [], cur: 0, fallos: 0, inicio: 0, hecho: false, guardarT: null,
+  abrir(m) {
+    if (!m) return;
+    this.m = m; this.t = [...m.texto]; this.dificil = m.modo === 'dificil';
+    const p = leer('morse-prog-' + m.id, null);
+    this.g = p?.g || []; this.fallos = p?.fallos || 0; this.inicio = p?.inicio || 0;
+    if (!this.dificil) this.t.forEach((c, i) => { if (c === ' ') this.g[i] = ' '; });
+    this.hecho = m.estado === 'resuelto';
+    this.cur = this.libre(-1, 1);
+    $('m-main').hidden = true; $('m-desc').hidden = false;
+    $('ds-de').textContent = m.de;
+    $('ds-modo').textContent = this.dificil ? 'modo difícil' : 'modo fácil';
+    $('ds-vel').textContent = `${Ajustes.wpm}/${Math.min(Ajustes.efectiva, Ajustes.wpm)} ppm · ${Ajustes.tono} Hz`;
+    $('ds-ayuda').textContent = this.dificil
+      ? 'Escribe de corrido lo que oyes, con espacios entre palabras. Lo acertado se queda en verde.'
+      : 'Toca una casilla para oír solo esa letra. Lo acertado se queda en verde; lo rojo puedes cambiarlo.';
+    $('ds-tablero').className = 'tablero' + (this.dificil ? ' dificil' : '');
+    this.pintar(); window.scrollTo(0, 0);
+    if (!this.hecho) this.enfocar();
+  },
+  cerrar() { Sonido.parar(); this.m = null; $('m-desc').hidden = true; $('m-main').hidden = false; Msg.pintar(); },
+  ok(i) { return i < this.t.length && this.g[i] === this.t[i]; },
+  // Siguiente (dir=1) o anterior (dir=-1) posición sin acertar a partir de i.
+  libre(i, dir) {
+    if (dir < 0) { for (let j = i - 1; j >= 0; j--) if (!this.ok(j)) return j; return -1; }
+    for (let j = i + 1; j < this.t.length; j++) if (!this.ok(j)) return j;
+    if (this.dificil) return Math.max(i + 1, this.t.length);
+    for (let j = 0; j < this.t.length; j++) if (!this.ok(j)) return j;
+    return -1;
+  },
+  completo() { return this.t.every((c, i) => this.ok(i)); },
+  progreso() {
+    const letras = this.t.filter(c => c !== ' ').length;
+    return letras ? this.t.filter((c, i) => c !== ' ' && this.ok(i)).length / letras : 0;
+  },
+  teclear(c) {
+    if (this.hecho || this.cur < 0) return;
+    if (!this.inicio) this.inicio = Date.now();
+    const i = this.cur;
+    this.g[i] = c;
+    if (this.ok(i)) this.pop = i; else this.fallos++;
+    this.cur = this.libre(i, 1);
+    this.cambio();
+  },
+  borrar() {
+    if (this.hecho) return;
+    if (this.cur >= 0 && this.g[this.cur] != null && !this.ok(this.cur)) { delete this.g[this.cur]; }
+    else { const j = this.libre(this.cur < 0 ? this.t.length : this.cur, -1); if (j < 0) return; delete this.g[j]; this.cur = j; }
+    // En modo difícil, las cajas sobrantes del final se quitan al borrarlas.
+    while (this.dificil && this.g.length && this.g[this.g.length - 1] == null) this.g.length--;
+    this.cambio();
+  },
+  cambio() {
+    guardar('morse-prog-' + this.m.id, { g: this.g, fallos: this.fallos, inicio: this.inicio });
+    if (this.completo()) return this.terminar(false);
+    this.pintar();
+    clearTimeout(this.guardarT);
+    this.guardarT = setTimeout(() => Red.actualizar(this.m.id, { progreso: this.progreso(), fallos: this.fallos }).catch(() => {}), 1500);
+  },
+  async terminar(rendido) {
+    clearTimeout(this.guardarT);
+    this.hecho = true; Sonido.parar();
+    if (rendido) this.g = [...this.t];
+    else this.g.length = this.t.length;
+    const segundos = this.inicio ? (Date.now() - this.inicio) / 1000 : 0;
+    this.pintar();
+    if (!rendido) { navigator.vibrate?.([40, 40, 40, 40, 200]); setTimeout(() => Sonido.reproducir('R'), 300); }
+    try {
+      await Red.actualizar(this.m.id, { estado: 'resuelto', progreso: rendido ? this.progreso() : 1, fallos: this.fallos, segundos: Math.round(segundos), resuelto: Red.ahora(), rendido });
+    } catch (e) { toast('No se pudo guardar el resultado: ' + e.message); }
+  },
+  pintar() {
+    const tab = $('ds-tablero');
+    const caja = i => {
+      const v = this.g[i], cls = ['caja'];
+      if (this.ok(i)) cls.push('ok'); else if (v != null) cls.push('mal');
+      if (i === this.cur && !this.hecho) cls.push('cur');
+      if (i === this.pop) cls.push('pop');
+      const ch = v == null ? '' : v === ' ' ? '␣' : v;
+      if ((this.t[i] === ' ' || v === ' ') && this.dificil) cls.push('esp');
+      return `<div class="${cls.join(' ')}" data-i="${i}">${esc(ch)}</div>`;
+    };
+    if (this.dificil && !this.hecho) {
+      const n = Math.max(this.cur + 1, this.g.length);
+      tab.innerHTML = Array.from({ length: n }, (_, i) => caja(i)).join('');
+    } else {
+      let html = '', palabra = '';
+      this.t.forEach((c, i) => { if (c === ' ') { html += `<div class="palabra">${palabra}</div>`; palabra = ''; } else palabra += caja(i); });
+      tab.innerHTML = html + `<div class="palabra">${palabra}</div>`;
+    }
+    this.pop = null;
+    $('ds-fallos').textContent = this.fallos;
+    $('ds-prog').textContent = Math.round(this.progreso() * 100) + ' %';
+    $('ds-rendirse').hidden = this.hecho;
+    const fin = $('ds-final');
+    fin.hidden = !this.hecho;
+    if (this.hecho) {
+      const m = this.m, seg = m.segundos ?? (this.inicio ? (Date.now() - this.inicio) / 1000 : 0);
+      fin.innerHTML = `<h2>${m.rendido ? 'El mensaje era' : '¡Descifrado! 🎉'}</h2><p class="final">${esc(m.texto)}</p>
+        <p class="muted">${fallosTxt(this.fallos)}${seg ? ` · ${mmss(seg)}` : ''}</p>
+        <div class="fila"><button id="ds-contestar" class="pri">↩ Contestar a ${esc(m.de)}</button><button id="ds-ocultar">Quitar de la lista</button></div>`;
+      $('ds-contestar').onclick = () => { $('nv-para').value = m.de; this.cerrar(); Msg.sub('nuevo'); $('nv-texto').focus(); };
+      $('ds-ocultar').onclick = () => { Msg.ocultos.add(m.id); guardar('morse-ocultos', [...Msg.ocultos]); this.cerrar(); };
+    }
+  },
+  enfocar() { const c = $('ds-captura'); c.value = '##'; c.focus({ preventScroll: true }); c.setSelectionRange(2, 2); },
+  oir() {
+    if (!this.inicio && !this.hecho) { this.inicio = Date.now(); guardar('morse-prog-' + this.m.id, { g: this.g, fallos: this.fallos, inicio: this.inicio }); }
+    // En modo fácil se marca la casilla que va sonando; en difícil eso delataría la longitud.
+    const marcar = this.dificil && !this.hecho ? null : i => {
+      document.querySelectorAll('.caja.suena').forEach(c => c.classList.remove('suena'));
+      document.querySelector(`.caja[data-i="${i}"]`)?.classList.add('suena');
+    };
+    Sonido.reproducir(this.m.texto, { onChar: marcar, onFin: () => document.querySelectorAll('.caja.suena').forEach(c => c.classList.remove('suena')) });
+    if (!this.hecho) this.enfocar();
+  }
+};
+
+// Captura del teclado: un input invisible con "##" dentro. Si el valor encoge, es un
+// borrado; si crece, lo nuevo son letras. Así funciona igual con el teclado del móvil
+// (que no manda bien keydown) y con uno físico.
+$('ds-captura').addEventListener('input', e => {
+  const v = e.target.value;
+  if (v.length < 2) Desc.borrar();
+  else normalizar(v.slice(2)).split('').forEach(c => Desc.teclear(c));
+  if (/ $/.test(v.slice(2)) && Desc.dificil) Desc.teclear(' ');
+  Desc.enfocar();
+});
+$('ds-tablero').onclick = e => {
+  const c = e.target.closest('.caja');
+  if (c && !Desc.hecho) {
+    const i = +c.dataset.i;
+    if (!Desc.ok(i)) Desc.cur = i;
+    if (i < Desc.t.length && Desc.t[i] !== ' ') Sonido.reproducir(Desc.t[i]);
+    Desc.pintar();
+  } else if (c && Desc.hecho) { const i = +c.dataset.i; if (Desc.t[i] !== ' ') Sonido.reproducir(Desc.t[i]); }
+  if (!Desc.hecho) Desc.enfocar();
+};
+$('ds-oir').onclick = () => Desc.oir();
+$('ds-parar').onclick = () => Sonido.parar();
+$('ds-volver').onclick = () => Desc.cerrar();
+$('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará como no resuelto.')) Desc.terminar(true); };
+
+// ---------------------------------------------------------------- arranque
+(async function () {
+  Koch.pintar(); pintarAjustes(); pintarLecciones(); pintarSignos(); Pulsar.reiniciar();
+  $('aj-signos').onchange = e => elegirSigno(e.target.dataset.s, e.target.checked);
+  Q.pintarLista();
+  $('pw-idioma').value = leer('morse-pw-idioma', 'es'); $('pw-aprendidas').checked = leer('morse-pw-aprendidas', false);
+  $('pw-movil').checked = !!Ajustes.tecladoMovil; Palabras.ponerTeclado(); Palabras.pintar(); Palabras.pintarMias();
+  pintarDestino(destinoDeHash());
+  $('aviso-local').hidden = Red.modo !== 'local';
+  try { await Red.iniciar(); Red.onSesion(c => Msg.sesion(c)); }
+  catch (e) { toast('No se pudo conectar: ' + e.message); }
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
