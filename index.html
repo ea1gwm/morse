@@ -219,7 +219,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <header class="barra">
   <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
   <h1 id="b-titulo">📻 Morse</h1>
-  <span class="ver" id="brand-version">v0.9.1</span>
+  <span class="ver" id="brand-version">v0.9.2</span>
   <span class="marcador" id="b-marcador" hidden></span>
   <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
   <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
@@ -411,15 +411,25 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
   <section class="vista" id="v-mensajes" hidden>
     <div id="m-login" class="card">
       <h2>Chats entre compañeros</h2>
-      <div class="muted">Entra con tu indicativo (o un nombre) y una contraseña. Sirve en varios dispositivos.</div>
-      <label for="lg-call">Indicativo</label>
-      <input type="text" id="lg-call" autocapitalize="characters" autocomplete="username" spellcheck="false" maxlength="12">
-      <label for="lg-pass">Contraseña (mínimo 6)</label>
-      <input type="password" id="lg-pass" autocomplete="current-password">
-      <div class="fila" style="margin-top:14px">
-        <button class="pri" id="lg-entrar">Entrar</button>
-        <button id="lg-crear">Crear cuenta</button>
+      <div class="seg" id="lg-modo">
+        <button data-m="entrar" class="on">Entrar</button>
+        <button data-m="crear">Crear cuenta</button>
       </div>
+      <div id="lg-crear-campos" hidden>
+        <label for="lg-nombre">Nombre <b>*</b></label>
+        <input type="text" id="lg-nombre" maxlength="40" autocomplete="name" placeholder="Braulio">
+        <label for="lg-indicativo">Indicativo (opcional)</label>
+        <input type="text" id="lg-indicativo" maxlength="12" autocapitalize="characters" spellcheck="false" placeholder="EA1ABC">
+        <p class="muted" id="lg-usuario-prev"></p>
+      </div>
+      <div id="lg-entrar-campos">
+        <label for="lg-call">Usuario o indicativo</label>
+        <input type="text" id="lg-call" autocapitalize="characters" autocomplete="username" spellcheck="false" maxlength="14">
+      </div>
+      <label for="lg-pass">Contraseña (mínimo 4)</label>
+      <input type="password" id="lg-pass" autocomplete="current-password">
+      <div class="muted" style="margin-top:6px">Solo se pide al crear la cuenta y al entrar desde otro aparato; así nadie puede usar tu indicativo.</div>
+      <button class="pri" id="lg-ok" style="margin-top:14px">Entrar</button>
       <div id="lg-error" class="muted" style="color:var(--bad);margin-top:10px"></div>
     </div>
 
@@ -604,7 +614,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <script>
 'use strict';
 
-const App = { version: '0.9.1' };
+const App = { version: '0.9.2' };
 
 // Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
 // funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
@@ -936,7 +946,7 @@ const Resultado = {
   },
   cerrar() { $('res-velo').hidden = true; $('resultado').hidden = true; },
   nombre() {
-    let n = Ajustes.nombre || Msg.yo;
+    let n = Ajustes.nombre || (Msg.yo && Msg.nomTxt(Msg.yo));
     if (!n) {
       n = (prompt('¿Tu indicativo o nombre para el mensaje?') || '').trim().toUpperCase();
       if (n) { Ajustes.nombre = n; guardarAjustes(); pintarAjustes(); }
@@ -1585,34 +1595,41 @@ const RedFirebase = {
   ts: () => firebase.firestore.FieldValue.serverTimestamp(),
   convs() { return this.db.collection('conversaciones'); },
   onSesion(cb) { this.auth.onAuthStateChanged(u => cb(u ? u.email.split('@')[0].toUpperCase() : null)); },
-  async asegurarIndicativo(call) {
-    const ref = this.db.collection('indicativos').doc(call);
-    if (!(await ref.get()).exists) await ref.set({ creado: this.ts() });
+  // Firebase exige 6 caracteres; las contraseñas cortas se alargan siempre igual al enviarlas.
+  clave: p => p.length < 6 ? p + '·morse' : p,
+  perfiles() { return this.db.collection('indicativos'); },
+  async perfil(key) { const d = await this.perfiles().doc(key).get(); return d.exists ? d.data() : null; },
+  // Crea la cuenta con el usuario «base». Si es un indicativo y ya existe, error; si sale
+  // del nombre y está ocupado, prueba BASE2, BASE3… Devuelve el usuario que quedó.
+  async registrar(base, pass, perfil, esIndicativo) {
+    for (let n = 1; n < 100; n++) {
+      const key = n === 1 ? base : base.slice(0, 12) + n;
+      try { await this.auth.createUserWithEmailAndPassword(this.email(key), this.clave(pass)); }
+      catch (e) { if (e.code === 'auth/email-already-in-use' && !esIndicativo) continue; throw new Error(this.errorAuth(e)); }
+      await this.perfiles().doc(key).set({ creado: this.ts(), nombre: perfil.nombre, indicativo: perfil.indicativo || '' });
+      return key;
+    }
+    throw new Error('No se encontró un usuario libre: prueba con otro nombre.');
   },
-  async registrar(call, pass) {
-    try { await this.auth.createUserWithEmailAndPassword(this.email(call), pass); }
+  async entrar(key, pass) {
+    try { await this.auth.signInWithEmailAndPassword(this.email(key), this.clave(pass)); }
     catch (e) { throw new Error(this.errorAuth(e)); }
-    await this.asegurarIndicativo(call);
-  },
-  async entrar(call, pass) {
-    try { await this.auth.signInWithEmailAndPassword(this.email(call), pass); }
-    catch (e) { throw new Error(this.errorAuth(e)); }
-    await this.asegurarIndicativo(call);
+    if (!(await this.perfil(key))) await this.perfiles().doc(key).set({ creado: this.ts(), nombre: key, indicativo: '' });
   },
   errorAuth(e) {
     return ({
       'auth/email-already-in-use': 'Ese indicativo ya tiene cuenta. Usa «Entrar».',
-      'auth/invalid-credential': 'Indicativo o contraseña incorrectos.',
+      'auth/invalid-credential': 'Usuario o contraseña incorrectos.',
       'auth/wrong-password': 'Contraseña incorrecta.',
-      'auth/user-not-found': 'Ese indicativo no tiene cuenta. Usa «Crear cuenta».',
-      'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+      'auth/user-not-found': 'Ese usuario no tiene cuenta. Usa «Crear cuenta».',
+      'auth/weak-password': 'La contraseña es demasiado corta.',
       'auth/too-many-requests': 'Demasiados intentos. Espera un poco.',
       'auth/network-request-failed': 'Sin conexión.',
       'auth/operation-not-allowed': 'Falta activar el acceso por email/contraseña en Firebase.'
     })[e.code] || e.message;
   },
   salir() { return this.auth.signOut(); },
-  async existe(call) { return (await this.db.collection('indicativos').doc(call).get()).exists; },
+  async existe(key) { return !!(await this.perfil(key)); },
   lista: s => s.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })),
   escucharChats(yo, cb) {
     return this.convs().where('miembros', 'array-contains', yo)
@@ -1658,18 +1675,24 @@ const RedLocal = {
   },
   onSesion(cb) { this.cbSesion = cb; cb(sessionStorage.getItem('morse-local-yo')); },
   fijar(call) { if (call) sessionStorage.setItem('morse-local-yo', call); else sessionStorage.removeItem('morse-local-yo'); this.cbSesion?.(call); },
-  async registrar(call, pass) {
+  async registrar(base, pass, perfil, esIndicativo) {
     const db = this.db();
-    if (db.usuarios[call]) throw new Error('Ese indicativo ya tiene cuenta. Usa «Entrar».');
-    if (pass.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres.');
-    db.usuarios[call] = pass; this.grabar(db); this.fijar(call);
+    let key = base;
+    for (let n = 2; db.usuarios[key]; n++) {
+      if (esIndicativo) throw new Error('Ese indicativo ya tiene cuenta. Usa «Entrar».');
+      key = base.slice(0, 12) + n;
+    }
+    db.usuarios[key] = { pass, nombre: perfil.nombre, indicativo: perfil.indicativo || '' }; this.grabar(db); this.fijar(key);
+    return key;
   },
-  async entrar(call, pass) {
-    if (this.db().usuarios[call] !== pass) throw new Error('Indicativo o contraseña incorrectos.');
-    this.fijar(call);
+  async entrar(key, pass) {
+    const u = this.db().usuarios[key];
+    if (!u || (u.pass ?? u) !== pass) throw new Error('Usuario o contraseña incorrectos.');
+    this.fijar(key);
   },
   async salir() { this.fijar(null); },
-  async existe(call) { return !!this.db().usuarios[call]; },
+  async perfil(key) { const u = this.db().usuarios[key]; return u ? { nombre: u.nombre || key, indicativo: u.indicativo || '' } : null; },
+  async existe(key) { return !!this.db().usuarios[key]; },
   sub(f) { this.subs.add(f); f(); return () => this.subs.delete(f); },
   escucharChats(yo, cb) {
     return this.sub(() => cb(Object.entries(this.db().convs).filter(([, c]) => c.miembros.includes(yo))
@@ -1702,7 +1725,7 @@ const Red = (FIREBASE_CONFIG && !new URLSearchParams(location.search).has('local
 // uno los descifra en Morse y, al acertar, ve el texto en la conversación. Para poder
 // responder hay que haber descifrado antes todo lo que te han enviado.
 const Msg = {
-  yo: null, chats: [], abierto: null, mensajes: [], quitar: [], quitarChat: null, conocidos: {},
+  yo: null, chats: [], abierto: null, mensajes: [], quitar: [], quitarChat: null, conocidos: {}, perfiles: {},
   visto: leer('morse-visto', {}),
   contactos: leer('morse-contactos', []),
   sesion(call) {
@@ -1710,7 +1733,7 @@ const Msg = {
     Object.assign(this, { yo: call, chats: [], conocidos: {}, primera: true });
     this.vista(call ? 'lista' : 'login');
     if (!call) return this.pintarBadge();
-    $('m-yo').textContent = call;
+    this.cargarPerfiles([call]);
     this.quitar.push(Red.escucharChats(call, l => this.llegan(l)));
   },
   vista(v) { ['login', 'lista', 'nuevo', 'chat', 'desc'].forEach(x => $('m-' + x).hidden = x !== v); $('main').scrollTop = 0; },
@@ -1719,21 +1742,41 @@ const Msg = {
     for (const c of lista) {
       const t = fecha(c.ultimo?.ts), antes = this.conocidos[c.id];
       if (!this.primera && antes !== undefined && t > antes && c.ultimo.de !== this.yo && c.id !== this.abierto) {
-        toast(`✉ ${c.ultimo.de} ha escrito en ${this.titulo(c)}`); navigator.vibrate?.([60, 60, 180]);
+        toast(`✉ ${this.nombre(c.ultimo.de)} ha escrito en ${this.titulo(c)}`); navigator.vibrate?.([60, 60, 180]);
       }
       this.conocidos[c.id] = t;
     }
     this.primera = false; this.chats = lista;
+    this.cargarPerfiles(lista.flatMap(c => c.miembros));
     this.pintarLista();
     if (this.abierto) this.pintarCabecera();
   },
-  titulo(c) { return c.tipo === 'grupo' ? (c.nombre || 'Grupo') : (c.miembros.find(m => m !== this.yo) || c.miembros[0]); },
+  // Los nombres pueden repetirse; el usuario (indicativo o el sacado del nombre) no.
+  // Por eso se enseña el nombre con el usuario al lado: «Braulio (EA1GWM)».
+  async cargarPerfiles(keys) {
+    const faltan = [...new Set(keys)].filter(k => !(k in this.perfiles));
+    if (!faltan.length) return this.pintarYo();
+    faltan.forEach(k => this.perfiles[k] = null);
+    await Promise.all(faltan.map(async k => { try { this.perfiles[k] = await Red.perfil(k); } catch {} }));
+    this.pintarYo(); this.pintarLista();
+    if (this.abierto) { this.pintarCabecera(); this.pintarChat(); }
+  },
+  nombre(k) { return this.perfiles[k]?.nombre || k; },
+  // Nombre corto, salvo que otro del mismo chat se llame igual: entonces lleva el usuario.
+  corto(k, miembros = this.chat()?.miembros || []) {
+    const n = this.nombre(k);
+    return miembros.some(m => m !== k && this.nombre(m) === n) ? this.nomTxt(k) : n;
+  },
+  nomTxt(k) { const n = this.perfiles[k]?.nombre; return n && n.toUpperCase() !== k ? `${n} (${k})` : k; },
+  nomHtml(k) { const n = this.perfiles[k]?.nombre; return n && n.toUpperCase() !== k ? `${esc(n)} <small>${esc(k)}</small>` : esc(k); },
+  pintarYo() { if (this.yo) $('m-yo').textContent = this.nomTxt(this.yo); },
+  titulo(c) { return c.tipo === 'grupo' ? (c.nombre || 'Grupo') : this.nomTxt(c.miembros.find(m => m !== this.yo) || c.miembros[0]); },
   sinLeer(c) { return c.ultimo?.de && c.ultimo.de !== this.yo && fecha(c.ultimo.ts) > (this.visto[this.yo + '|' + c.id] || 0); },
   pintarBadge() { const n = this.yo ? this.chats.filter(c => this.sinLeer(c)).length : 0; $('badge').hidden = !n; $('badge').textContent = n; },
   pintarLista() {
     const l = [...this.chats].sort((a, b) => fecha(b.ultimo?.ts) - fecha(a.ultimo?.ts));
     $('m-chats').innerHTML = l.length ? l.map(c => {
-      const ult = c.ultimo?.de ? `${c.ultimo.de === this.yo ? 'Tú' : esc(c.ultimo.de)} · ${hace(fecha(c.ultimo.ts))}` : '';
+      const ult = c.ultimo?.de ? `${c.ultimo.de === this.yo ? 'Tú' : esc(this.corto(c.ultimo.de, c.miembros))} · ${hace(fecha(c.ultimo.ts))}` : '';
       const sub = c.tipo === 'grupo' ? `👥 ${c.miembros.length} · ${ult}` : ult;
       return `<div class="item" data-id="${esc(c.id)}"><div class="q"><b>${c.tipo === 'grupo' ? '👥 ' : ''}${esc(this.titulo(c))}</b><small>${sub}</small></div>${this.sinLeer(c) ? '<span class="estado nuevo">Nuevo</span>' : ''}</div>`;
     }).join('') : `<div class="vacio">Aún no tienes chats.<br>Empieza uno con un compañero o crea un grupo.<br>Tu indicativo es <b>${esc(this.yo || '')}</b>.</div>`;
@@ -1745,7 +1788,7 @@ const Msg = {
     this.nuevoGrupo = grupo;
     $('nv-titulo').textContent = grupo ? 'Nuevo grupo' : 'Nuevo chat';
     $('nv-grupo-campos').hidden = !grupo;
-    $('nv-para-label').textContent = grupo ? 'Indicativos de los compañeros (separados por espacios o comas)' : 'Indicativo de tu compañero';
+    $('nv-para-label').textContent = grupo ? 'Usuarios o indicativos de los compañeros (separados por espacios o comas)' : 'Usuario o indicativo de tu compañero';
     $('nv-para').value = ''; $('nv-nombre').value = '';
     this.vista('nuevo'); (grupo ? $('nv-nombre') : $('nv-para')).focus();
   },
@@ -1784,13 +1827,13 @@ const Msg = {
   pintarCabecera() {
     const c = this.chat(); if (!c) return;
     $('ch-titulo').textContent = (c.tipo === 'grupo' ? '👥 ' : '') + this.titulo(c);
-    $('ch-sub').textContent = c.tipo === 'grupo' ? c.miembros.join(', ') : 'Chat individual';
+    $('ch-sub').textContent = c.tipo === 'grupo' ? c.miembros.map(m => this.corto(m)).join(', ') : 'Chat individual';
     $('ch-info-btn').hidden = c.tipo !== 'grupo';
     if (!$('ch-info').hidden) this.pintarInfo();
   },
   pintarInfo() {
     const c = this.chat(), admin = c.creador === this.yo;
-    $('ch-info').innerHTML = `<b>Miembros</b><p>${c.miembros.map(m => esc(m) + (m === c.creador ? ' (creador)' : '')).join(' · ')}</p>
+    $('ch-info').innerHTML = `<b>Miembros</b><p>${c.miembros.map(m => this.nomHtml(m) + (m === c.creador ? ' (creador)' : '')).join(' · ')}</p>
       ${admin ? `<div class="fila" style="flex-wrap:nowrap"><input type="text" id="ch-anadir-c" placeholder="Añadir indicativo" autocapitalize="characters"><button id="ch-anadir">＋</button></div>` : ''}
       <div class="fila" style="margin-top:10px"><button id="ch-salir-grupo">🚪 Salir del grupo</button></div>`;
     if (admin) $('ch-anadir').onclick = () => this.anadirMiembro();
@@ -1825,25 +1868,25 @@ const Msg = {
     const otros = m => c.miembros.filter(x => x !== m.de);
     $('ch-mensajes').innerHTML = this.mensajes.length ? this.mensajes.map(m => {
       const mio = m.de === this.yo, r = m.resueltos || {}, yoHecho = this.hecho(r[this.yo]);
-      const quien = otros(m).map(x => `<span>${esc(x)} ${this.estadoDe(r[x])}</span>`).join(' ');
+      const quien = otros(m).map(x => `<span>${esc(this.corto(x))} ${this.estadoDe(r[x])}</span>`).join(' ');
       if (mio) {
         return `<div class="burbuja mia"><div class="txt">${esc(m.texto)}</div>
           <div class="info">${quien} · ${hace(fecha(m.creado))}</div></div>`;
       }
       if (yoHecho) {
         const mi = r[this.yo];
-        return `<div class="burbuja"><div class="de">${esc(m.de)}</div><div class="txt">${esc(m.texto)}</div>
+        return `<div class="burbuja"><div class="de">${this.nomHtml(m.de)}</div><div class="txt">${esc(m.texto)}</div>
           <div class="info">${mi.ok ? `✓ tú ${fallosTxt(mi.f)}${mi.s ? ` · ${mmss(mi.s)}` : ''}` : '🏳 te rendiste'}${grupo ? ' · ' + quien : ''} · <a href="#" data-oir="${esc(m.id)}">🔊</a></div></div>`;
       }
       const pista = m.modo === 'facil' ? `${m.texto.replace(/ /g, '').length} letras · fácil` : 'difícil';
       const p = r[this.yo]?.p ? ` · llevas ${Math.round(r[this.yo].p * 100)} %` : '';
-      return `<div class="burbuja bloq" data-desc="${esc(m.id)}"><div class="de">${esc(m.de)}</div>
+      return `<div class="burbuja bloq" data-desc="${esc(m.id)}"><div class="de">${this.nomHtml(m.de)}</div>
         <div class="txt">🔒 Mensaje en Morse</div><div class="info">${pista}${p} · ${hace(fecha(m.creado))} — toca para descifrar</div></div>`;
     }).join('') : '<div class="vacio">Aún no hay mensajes. ¡Escribe el primero!</div>';
     // Para responder hay que descifrar antes lo que te han mandado.
     const pend = this.pendientes();
     $('ch-bloqueo').hidden = !pend.length; $('ch-escribir').hidden = !!pend.length;
-    if (pend.length) $('ch-bloqueo').innerHTML = `🔒 Descifra ${pend.length === 1 ? `el mensaje de ${esc(pend[0].de)}` : `los ${pend.length} mensajes pendientes`} para poder responder.
+    if (pend.length) $('ch-bloqueo').innerHTML = `🔒 Descifra ${pend.length === 1 ? `el mensaje de ${esc(this.corto(pend[0].de))}` : `los ${pend.length} mensajes pendientes`} para poder responder.
       <button class="pri" id="ch-ir-desc">Descifrar</button>`;
     if (pend.length) $('ch-ir-desc').onclick = () => Desc.abrir(pend[0], c.id);
     requestAnimationFrame(() => { $('main').scrollTop = $('main').scrollHeight; });
@@ -1879,20 +1922,49 @@ $('ch-mensajes').onclick = e => {
 };
 $('m-salir').onclick = () => Red.salir();
 
-function datosLogin() {
-  const call = $('lg-call').value.trim().toUpperCase(), pass = $('lg-pass').value;
-  if (!/^[A-Z0-9]{3,12}$/.test(call)) throw new Error('El indicativo debe tener de 3 a 12 letras o números, sin barras ni espacios.');
-  if (!pass) throw new Error('Escribe la contraseña.');
-  return [call, pass];
+// Cuentas: el nombre es libre (puede repetirse); el usuario es único y es con lo que se
+// entra y se busca a la gente. Si hay indicativo, el usuario es el indicativo; si no,
+// sale del nombre (JUANPEREZ) y, si está cogido, se le añade un número (JUANPEREZ2).
+const usuarioDe = t => normalizar(t).replace(/Ñ/g, 'N').replace(/[^A-Z0-9]/g, '');
+const usuarioDeNombre = n => usuarioDe(n).slice(0, 12).padEnd(3, '0');
+let modoLogin = 'entrar';
+function ponerModoLogin(m) {
+  modoLogin = m;
+  document.querySelectorAll('#lg-modo button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  $('lg-crear-campos').hidden = m !== 'crear'; $('lg-entrar-campos').hidden = m === 'crear';
+  $('lg-ok').textContent = m === 'crear' ? 'Crear cuenta' : 'Entrar';
+  $('lg-pass').autocomplete = m === 'crear' ? 'new-password' : 'current-password';
+  $('lg-error').textContent = ''; previsualizarUsuario();
 }
-async function login(accion) {
+function previsualizarUsuario() {
+  const ind = usuarioDe($('lg-indicativo').value), nom = $('lg-nombre').value.trim();
+  $('lg-usuario-prev').textContent = ind ? `Tu usuario será tu indicativo: ${ind}`
+    : nom ? `Tu usuario será ${usuarioDeNombre(nom)} (si ya existe, se le añade un número). Lo necesitarás para entrar desde otro aparato.` : '';
+}
+async function login() {
   $('lg-error').textContent = '';
-  try { const [c, p] = datosLogin(); await Red[accion](c, p); $('lg-pass').value = ''; }
-  catch (e) { $('lg-error').textContent = e.message; }
+  const pass = $('lg-pass').value;
+  try {
+    if (pass.length < 4) throw new Error('La contraseña debe tener al menos 4 caracteres.');
+    if (modoLogin === 'entrar') {
+      const key = usuarioDe($('lg-call').value);
+      if (key.length < 3) throw new Error('Escribe tu usuario o tu indicativo.');
+      await Red.entrar(key, pass);
+    } else {
+      const nombre = $('lg-nombre').value.trim(), ind = usuarioDe($('lg-indicativo').value);
+      if (!nombre) throw new Error('El nombre es obligatorio.');
+      if (ind && !/^[A-Z0-9]{3,12}$/.test(ind)) throw new Error('El indicativo debe tener de 3 a 12 letras o números.');
+      const key = await Red.registrar(ind || usuarioDeNombre(nombre), pass, { nombre, indicativo: ind }, !!ind);
+      if (!Ajustes.nombre) { Ajustes.nombre = nombre; guardarAjustes(); pintarAjustes(); }
+      toast(`✅ Cuenta creada. Tu usuario es ${key}: apúntalo para entrar en otro aparato.`);
+    }
+    $('lg-pass').value = '';
+  } catch (e) { $('lg-error').textContent = e.message; }
 }
-$('lg-entrar').onclick = () => login('entrar');
-$('lg-crear').onclick = () => login('registrar');
-$('lg-pass').onkeydown = e => { if (e.key === 'Enter') login('entrar'); };
+document.querySelectorAll('#lg-modo button').forEach(b => b.onclick = () => ponerModoLogin(b.dataset.m));
+$('lg-nombre').oninput = $('lg-indicativo').oninput = previsualizarUsuario;
+$('lg-ok').onclick = () => login();
+$('lg-pass').onkeydown = e => { if (e.key === 'Enter') login(); };
 
 // ---------------------------------------------------------------- descifrar
 // Cada posición del texto es una caja. Una caja acertada queda fija en verde; una
@@ -1912,7 +1984,7 @@ const Desc = {
     if (this.hecho) this.g = [...this.t];
     this.cur = this.libre(-1, 1);
     Msg.vista('desc');
-    $('ds-de').textContent = m.de;
+    $('ds-de').textContent = Msg.nomTxt(m.de);
     $('ds-modo').textContent = this.dificil ? 'modo difícil' : 'modo fácil';
     $('ds-vel').textContent = `${Ajustes.wpm}/${Math.min(Ajustes.efectiva, Ajustes.wpm)} ppm · ${Ajustes.tono} Hz`;
     $('ds-ayuda').textContent = this.dificil
@@ -2052,6 +2124,7 @@ $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará com
 // Al abrir una versión nueva se enseña qué ha cambiado desde la última que se vio.
 // Si la app lleva rato abierta y se publica otra, se avisa para recargar.
 const NOVEDADES = [
+  ['0.9.2', ['Al crear la cuenta, el nombre es obligatorio y el indicativo opcional. Si no tienes indicativo, tu usuario sale de tu nombre.', 'En los chats se ve el nombre de cada uno junto a su usuario.', 'La contraseña puede ser corta (mínimo 4) y solo se pide al entrar desde otro aparato.']],
   ['0.9.1', ['Palabras: toca entre dos letras para meter la que falta o borrar ahí, sin tener que borrar todo.']],
   ['0.9.0', ['Chats individuales y de grupo: cada mensaje llega en Morse y, al descifrarlo, aparece en la conversación.',
     'En los grupos ves quién ha descifrado cada mensaje y con cuántos fallos.',

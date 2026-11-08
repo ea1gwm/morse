@@ -11,10 +11,14 @@ service cloud.firestore {
     function dentro() { return request.auth != null && request.auth.token.email is string; }
     function yo() { return request.auth.token.email.split('@')[0].upper(); }
 
+    // Perfil de cada usuario: nombre (obligatorio, puede repetirse) e indicativo (opcional).
     match /indicativos/{call} {
       allow read: if dentro();
-      allow create: if dentro() && call == yo()
-        && request.resource.data.keys().hasOnly(['creado']);
+      allow create, update: if dentro() && call == yo()
+        && request.resource.data.keys().hasOnly(['creado', 'nombre', 'indicativo'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 40
+        && (!('indicativo' in request.resource.data) || (request.resource.data.indicativo is string && request.resource.data.indicativo.size() <= 12));
     }
 
     match /conversaciones/{cid} {
