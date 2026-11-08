@@ -1,5 +1,5 @@
-const CACHE = 'morse-v0.9.2';
-const ASSETS = ['./', './index.html', './manifest.json', './morse-icon.svg', './morse-192.png', './morse-512.png'];
+const CACHE = 'morse-v0.10.0';
+const ASSETS = ['./', './index.html', './manifest.json', './morse-icon.svg', './morse-192.png', './morse-512.png', './morse-180.png', './morse-maskable-192.png', './morse-maskable-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));

@@ -7,7 +7,10 @@
 <title>Morse</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="morse-icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="morse-192.png">
+<link rel="apple-touch-icon" href="morse-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Morse">
+<meta name="mobile-web-app-capable" content="yes">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -184,6 +187,26 @@ label.check { display: flex; align-items: center; gap: 6px; margin: 6px 0; color
 .burbuja .info a { text-decoration: none; }
 .responder { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); background: var(--bg); padding: 8px 0 calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .responder textarea { min-height: 48px; }
+.burbuja.abierta { align-self: stretch; max-width: none; cursor: default; border-style: solid; }
+.ds-panel { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.ds-panel .tablero { padding: 4px 0; gap: 10px 12px; }
+.ds-panel .tablero.dificil { gap: 5px; }
+.ds-panel .palabra { flex-wrap: wrap; gap: 4px; }
+.ds-panel .caja { width: 32px; height: 42px; font-size: 19px; }
+.ds-panel .caja.esp { width: 18px; }
+.ds-panel > .fila:first-child { flex-wrap: nowrap; }
+.ds-panel button { white-space: nowrap; }
+.ds-panel #ds-vel { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.instalar { display: block; width: 100%; margin-top: 14px; padding: 14px; font-weight: 600; background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.aviso-inv { background: var(--ok-bg); color: var(--ok); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; }
+.conectados .chips { margin-top: 8px; }
+.chip-usr { border-radius: 16px; padding: 6px 12px; background: var(--box); }
+.chip-usr small { color: var(--muted); }
+#invitacion #inv-velo, #inv-velo, #ios-velo { z-index: 40; }
+button.peligro { color: var(--bad); border-color: var(--bad); }
+.responder textarea.normal { text-transform: none; font-family: inherit; }
+.burbuja .txt-normal { font-size: 16px; white-space: pre-wrap; word-break: break-word; }
+.burbuja.texto { border-style: dotted; }
 .bloqueo { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 14px; }
 header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white-space: nowrap; background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 8px; }
 .modal { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; background: var(--panel); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
@@ -219,7 +242,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <header class="barra">
   <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
   <h1 id="b-titulo">📻 Morse</h1>
-  <span class="ver" id="brand-version">v0.9.2</span>
+  <span class="ver" id="brand-version">v0.10.0</span>
   <span class="marcador" id="b-marcador" hidden></span>
   <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
   <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
@@ -255,6 +278,8 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
     </div>
     <div class="muted" style="margin-top:6px">«Al azar» cambia el orden en cada lección, para no asociar el sonido con la posición.</div>
     <div class="muted" id="pl-dificiles" style="margin-top:8px"></div>
+    <label class="check" style="margin-top:10px"><input type="checkbox" id="pl-auto"> Pasar de lección automáticamente</label>
+    <div class="muted" id="pl-progreso"></div>
   </div>
   <div data-panel="palabras">
     <h3>Palabras</h3>
@@ -321,6 +346,25 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
   </div>
 </div>
 
+<!-- ============ INVITACIÓN A UN GRUPO (al abrir un enlace) ============ -->
+<div class="velo" id="inv-velo" hidden></div>
+<div class="modal" id="invitacion" hidden role="dialog" aria-labelledby="inv-texto">
+  <h2>📩 Invitación</h2>
+  <p id="inv-texto"></p>
+  <div class="fila" style="justify-content:center">
+    <button class="pri" id="inv-si">👥 Entrar al grupo</button>
+    <button id="inv-no">No, gracias</button>
+  </div>
+</div>
+
+<!-- ============ CÓMO INSTALAR (iPhone) ============ -->
+<div class="velo" id="ios-velo" hidden></div>
+<div class="modal" id="ios-instalar" hidden role="dialog">
+  <h2>📲 Instalar en iPhone</h2>
+  <p>En Safari, pulsa el botón <b>Compartir</b> (el cuadrado con la flecha ⬆) y elige <b>«Añadir a pantalla de inicio»</b>.</p>
+  <button class="pri" id="ios-ok">Entendido</button>
+</div>
+
 <main id="main">
   <!-- ============ INICIO ============ -->
   <section class="vista" id="v-inicio">
@@ -334,6 +378,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       <button data-ir="ajustes"><span class="i">⚙</span>Ajustes</button>
       <button data-ir="ayuda"><span class="i">❓</span>Ayuda</button>
     </div>
+    <button class="instalar" id="instalar" hidden>📲 Instalar la app en este aparato</button>
   </section>
 
   <!-- ============ APRENDER ============ -->
@@ -411,6 +456,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
   <section class="vista" id="v-mensajes" hidden>
     <div id="m-login" class="card">
       <h2>Chats entre compañeros</h2>
+      <div class="aviso-inv" id="lg-invitacion" hidden></div>
       <div class="seg" id="lg-modo">
         <button data-m="entrar" class="on">Entrar</button>
         <button data-m="crear">Crear cuenta</button>
@@ -443,6 +489,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
         <button class="pri" id="m-nuevo-ind">✉ Chat con un compañero</button>
         <button id="m-nuevo-grupo">👥 Nuevo grupo</button>
       </div>
+      <div class="card conectados" id="m-conectados"></div>
       <div class="card lista" id="m-chats"></div>
     </div>
 
@@ -467,7 +514,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       <div class="chat-cab">
         <button id="ch-volver" aria-label="Volver a los chats">←</button>
         <div class="q"><b id="ch-titulo"></b><small id="ch-sub"></small></div>
-        <button id="ch-info-btn" aria-label="Miembros del grupo" hidden>👥</button>
+        <button id="ch-info-btn" aria-label="Opciones del chat">⋮</button>
       </div>
       <div class="card" id="ch-info" hidden></div>
       <div class="chat" id="ch-mensajes"></div>
@@ -479,6 +526,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
             <select id="nv-modo" style="width:auto;flex:1">
               <option value="facil">Fácil: ve las casillas</option>
               <option value="dificil">Difícil: sin pistas</option>
+              <option value="texto">💬 Texto normal (sin Morse)</option>
             </select>
             <span class="muted"><span id="nv-cuenta">0</span>/<span id="nv-max"></span></span>
             <button id="nv-oir" aria-label="Escuchar cómo suena">🔊</button>
@@ -488,27 +536,25 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       </div>
     </div>
 
-    <!-- Pantalla de descifrado -->
+    <!-- Descifrador: vive aquí escondido y se mete dentro de la burbuja que se está descifrando -->
     <div id="m-desc" hidden>
-      <div class="fila" style="margin-bottom:12px">
-        <button id="ds-volver">← Volver</button>
-        <div style="flex:1">De <b id="ds-de"></b> · <span class="muted" id="ds-modo"></span></div>
-      </div>
-      <div class="card">
+      <div class="ds-panel" id="ds-panel">
         <div class="fila">
           <button class="pri" id="ds-oir">▶ Escuchar</button>
-          <button id="ds-parar">⏹</button>
+          <button id="ds-parar" aria-label="Parar el sonido">⏹</button>
           <span class="muted" id="ds-vel"></span>
+          <button id="ds-volver" aria-label="Cerrar el descifrador" style="margin-left:auto">✕</button>
         </div>
-        <div class="muted" style="margin-top:8px" id="ds-ayuda"></div>
+        <div class="muted" id="ds-ayuda"></div>
         <div class="tablero" id="ds-tablero"></div>
         <input class="captura" id="ds-captura" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
-        <div class="fila" style="justify-content:space-between;margin-top:8px">
-          <span class="muted">Fallos: <b id="ds-fallos">0</b> · <span id="ds-prog">0 %</span></span>
+        <div class="fila" style="justify-content:space-between">
+          <span class="muted">Fallos: <b id="ds-fallos">0</b> · <span id="ds-prog">0 %</span> · <span id="ds-modo"></span></span>
           <button id="ds-rendirse">Me rindo</button>
         </div>
       </div>
-      <div class="card" id="ds-final" hidden></div>
+      <span id="ds-de" hidden></span>
+      <div id="ds-final" hidden></div>
     </div>
   </section>
 
@@ -550,6 +596,14 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       <h2>Aprendizaje</h2>
       <label>Mostrar la ayuda tras <b id="aj-ayuda-v"></b> fallos</label>
       <input type="range" id="aj-ayuda" min="1" max="10" step="1">
+      <label class="check" style="margin-top:14px"><input type="checkbox" id="aj-auto"> Pasar de lección automáticamente (en «Aprender letras»)</label>
+      <div id="aj-auto-campos">
+        <label>Aciertos a la primera necesarios (de las últimas 20 letras): <b id="aj-auto-pct-v"></b> %</label>
+        <input type="range" id="aj-auto-pct" min="60" max="100" step="5">
+        <label>Tiempo medio máximo en contestar: <b id="aj-auto-seg-v"></b></label>
+        <input type="range" id="aj-auto-seg" min="0" max="8" step="0.5">
+        <div class="muted">Cuenta desde que acaba de sonar la letra hasta que la pulsas. A 0 no se tiene en cuenta el tiempo.</div>
+      </div>
       <label>Grupos de 5 por ejercicio (Grupos): <b id="aj-grupos-v"></b></label>
       <input type="range" id="aj-grupos" min="2" max="20" step="1">
       <label for="aj-duracion">Duración de cada ejercicio</label>
@@ -614,7 +668,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <script>
 'use strict';
 
-const App = { version: '0.9.2' };
+const App = { version: '0.10.0' };
 
 // Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
 // funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
@@ -692,7 +746,7 @@ function normalizar(t) {
 const aMorse = t => normalizar(t).split(' ').map(p => [...p].map(c => MORSE[c]).join(' ')).join('  /  ');
 
 // ---------------------------------------------------------------- ajustes
-const Ajustes = Object.assign({ wpm: 20, efectiva: 10, tono: 600, volumen: 60, grupos: 5, ayuda: 3, duracion: 5, nombre: '', sonidoFallo: 'ups' }, leer('morse-ajustes', {}));
+const Ajustes = Object.assign({ wpm: 20, efectiva: 10, tono: 600, volumen: 60, grupos: 5, ayuda: 3, duracion: 5, nombre: '', sonidoFallo: 'ups', autoSubir: true, autoPct: 90, autoSeg: 3 }, leer('morse-ajustes', {}));
 function guardarAjustes() { guardar('morse-ajustes', Ajustes); }
 
 // ---------------------------------------------------------------- sonido
@@ -770,7 +824,19 @@ const DESTINOS = {
   palabras: ['aprender', 'palabras', 'Palabras'], grupos: ['aprender', 'grupos', 'Grupos'], escuchar: ['escuchar', null, 'Escuchar'],
   mensajes: ['mensajes', null, 'Mensajes'], ajustes: ['ajustes', null, 'Ajustes'], ayuda: ['ayuda', null, 'Ayuda']
 };
-const destinoDeHash = () => DESTINOS[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio';
+// Un enlace de invitación (#unirse/<grupo>/<código>/<nombre>) se guarda y lleva a Mensajes,
+// donde se pregunta si quieres entrar (después de entrar o crear la cuenta, si hace falta).
+function destinoDeHash() {
+  const h = location.hash.slice(1);
+  if (h.startsWith('unirse/')) {
+    const [, cid, codigo, nombre] = h.split('/');
+    if (cid && codigo) guardar('morse-invitacion', { cid, codigo, nombre: decodeURIComponent(nombre || 'Grupo') });
+    history.replaceState(null, '', '#mensajes');
+    setTimeout(() => Msg.yo ? Msg.procesarInvitacion() : Msg.pintarInvitacionLogin(), 0);
+    return 'mensajes';
+  }
+  return DESTINOS[h] ? h : 'inicio';
+}
 function ir(d) { if (location.hash.slice(1) === d) pintarDestino(d); else location.hash = d; }
 function pintarDestino(d) {
   const [vista, ap, titulo] = DESTINOS[d];
@@ -794,12 +860,20 @@ function pintarInicio() { $('ini-leccion').textContent = `Lección ${Koch.n - 1}
 
 // Panel de opciones (⚙): muestra solo los bloques que tocan al ejercicio abierto.
 let apartadoActual = 'pulsar';
+// Cómo vas para pasar de lección (se ve en el panel ⚙ de Letras).
+function pintarProgreso() {
+  const m = Pulsar.marcas(), seg = Ajustes.autoSeg;
+  $('pl-progreso').textContent = !Ajustes.autoSubir ? '' : m.n < 20
+    ? `Para pasar: ${Ajustes.autoPct} % a la primera${seg ? ` y menos de ${seg} s de media` : ''} en 20 letras. Llevas ${m.n} de 20.`
+    : `Últimas 20: ${Math.round(m.pct)} % a la primera (necesitas ${Ajustes.autoPct} %)${seg ? ` · ${m.seg.toFixed(1)} s de media (máx. ${seg} s)` : ''}.`;
+}
 function abrirPanel() {
   const ap = apartadoActual;
   document.querySelectorAll('#panel [data-panel]').forEach(p => {
     const k = p.dataset.panel;
     p.hidden = !(k === 'comun' || k === ap || (k === 'leccion' && (ap === 'pulsar' || ap === 'grupos')));
   });
+  pintarProgreso();
   const dif = Stats.dificiles([...Pulsar.letras()], 6);
   $('pl-dificiles').textContent = dif.length ? `Te cuestan más: ${dif.join('  ')} (saldrán más a menudo)` : '';
   $('panel').hidden = false; $('velo').hidden = false; $('b-opciones').classList.add('on');
@@ -978,6 +1052,13 @@ const Resultado = {
       : `https://t.me/share/url?url=${encodeURIComponent(t)}`, '_blank');
   }
 };
+// Comparte un texto con un enlace: menú del sistema, WhatsApp o Telegram.
+async function compartirTexto(texto, url, via) {
+  if (via === 'wa') return open('https://wa.me/?text=' + encodeURIComponent(`${texto}\n${url}`), '_blank');
+  if (via === 'tg') return open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(texto)}`, '_blank');
+  if (navigator.share) { try { await navigator.share({ text: texto, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(`${texto}\n${url}`); toast('Enlace copiado: pégalo donde quieras.'); } catch { prompt('Copia el enlace:', url); }
+}
 const NOMBRES_EJ = { pulsar: 'Letras', q: 'Código Q', palabras: 'Palabras', grupos: 'Grupos' };
 $('res-compartir').onclick = () => Resultado.compartir();
 $('res-wa').onclick = () => Resultado.whatsapp();
@@ -1079,8 +1160,9 @@ const Pulsar = {
   // Al cambiar de lección en mitad de un ejercicio, se sigue con las letras nuevas.
   reiniciar() {
     const seguir = this.activo;
-    this.actual = null; this.fallos = 0; this.racha = [];
+    this.actual = null; this.fallos = 0; this.racha = []; this.tiempos = [];
     this.pintar();
+    if (this.subiendo) return;          // el paso automático sigue él solo
     if (seguir) this.siguiente(); else this.parar();
   },
   parar() {
@@ -1109,12 +1191,32 @@ const Pulsar = {
     this.pintarRacha();
     requestAnimationFrame(ajustarTeclas);
   },
+  // Para pasar de lección se miran las últimas 20 letras: el % acertado a la primera y el
+  // tiempo medio que se tarda en pulsar desde que acaba de sonar (solo en los aciertos).
+  tiempos: [],
+  marcas() {
+    const r = this.racha, ok = r.filter(Boolean).length, ts = this.tiempos.filter(t => t != null);
+    return { n: r.length, pct: r.length ? ok / r.length * 100 : 0, seg: ts.length ? ts.reduce((a, b) => a + b, 0) / ts.length : 0 };
+  },
+  cumple() {
+    const m = this.marcas();
+    return m.n >= 20 && m.pct >= Ajustes.autoPct && (!Ajustes.autoSeg || m.seg <= Ajustes.autoSeg) && Koch.n < KOCH.length;
+  },
   pintarRacha() {
-    const r = this.racha, ok = r.filter(Boolean).length;
     $('pl-ayuda').hidden = !this.actual || this.fallos < Ajustes.ayuda;
-    const sube = r.length >= 20 && ok / r.length >= 0.9 && Koch.n < KOCH.length;
+    // Con el paso automático no hace falta el botón: se pasa solo.
+    const sube = !Ajustes.autoSubir && this.cumple();
     $('pl-subir').hidden = !sube;
-    if (sube) $('pl-subir').textContent = `🎉 ${Math.round(ok / r.length * 100)} %: pasar a la lección ${Koch.n} (letra ${KOCH[Koch.n]})`;
+    if (sube) $('pl-subir').textContent = `🎉 ${Math.round(this.marcas().pct)} %: pasar a la lección ${Koch.n} (letra ${KOCH[Koch.n]})`;
+  },
+  // Paso automático: se anuncia la letra nueva, suena tres veces y se sigue practicando.
+  subirSolo() {
+    const nueva = KOCH[Koch.n];
+    this.subiendo = true; Koch.cambiar(1); this.subiendo = false;
+    $('pl-estado').textContent = `🎉 ¡Lección ${Koch.n - 1}! Nueva: ${nueva}  ${bonito(MORSE[nueva])}`;
+    toast(`🎉 ¡Lección superada! Ahora entra la ${nueva}`);
+    this.boton(nueva)?.classList.add('pista');
+    Sonido.reproducir(`${nueva} ${nueva} ${nueva}`, { onFin: () => setTimeout(() => { if (this.activo) this.siguiente(); }, 600) });
   },
   siguiente() {
     // Más probabilidad para la letra nueva, las que fallas y las que hace rato que no salen.
@@ -1126,20 +1228,24 @@ const Pulsar = {
     this.pintarRacha();
     setTimeout(() => this.oir(), 300);
   },
-  oir() { if (this.actual) Sonido.reproducir(this.actual); },
+  oir() { if (this.actual) { this.finSonido = null; Sonido.reproducir(this.actual, { onFin: () => { this.finSonido = Date.now(); } }); } },
   boton: c => document.querySelector(`#pl-teclado button[data-c="${CSS.escape(c)}"]`),
   pulsar(c) {
     if (!this.actual) return;
     const b = this.boton(c);
     if (c === this.actual) {
+      // Pulsar antes de que acabe de sonar cuenta como 0 segundos.
+      const seg = this.finSonido ? (Date.now() - this.finSonido) / 1000 : 0;
       Sonido.parar();
       b.classList.add('ok');
       Stats.anotar(c, this.fallos > 0); Sesion.acierto(this.fallos === 0);
-      this.racha.push(this.fallos === 0); if (this.racha.length > 20) this.racha.shift();
+      this.racha.push(this.fallos === 0); this.tiempos.push(this.fallos === 0 ? seg : null);
+      if (this.racha.length > 20) { this.racha.shift(); this.tiempos.shift(); }
       const code = bonito(MORSE[c]);
       $('pl-estado').textContent = this.fallos === 0 ? `✓ ${c}  ${code}` : `✓ ${c}  ${code} (a la ${this.fallos + 1}ª)`;
       this.actual = null; this.pintarRacha();
-      setTimeout(() => { if (this.activo) this.siguiente(); }, 700);
+      if (Ajustes.autoSubir && this.cumple()) setTimeout(() => { if (this.activo) this.subirSolo(); }, 700);
+      else setTimeout(() => { if (this.activo) this.siguiente(); }, 700);
     } else {
       this.fallos++; Sesion.fallo(this.actual); Sonido.error();
       b.classList.remove('mal'); void b.offsetWidth; b.classList.add('mal');
@@ -1549,6 +1655,9 @@ function pintarAjustes() {
   $('rp-ef').max = Ajustes.wpm; $('rp-ef').value = Math.min(Ajustes.efectiva, Ajustes.wpm); $('rp-ef-v').textContent = Math.min(Ajustes.efectiva, Ajustes.wpm);
   document.querySelectorAll('.sel-duracion').forEach(s => s.value = Ajustes.duracion);
   $('aj-fallo').value = Ajustes.sonidoFallo;
+  $('aj-auto').checked = $('pl-auto').checked = !!Ajustes.autoSubir; $('aj-auto-campos').hidden = !Ajustes.autoSubir;
+  $('aj-auto-pct').value = Ajustes.autoPct; $('aj-auto-pct-v').textContent = Ajustes.autoPct;
+  $('aj-auto-seg').value = Ajustes.autoSeg; $('aj-auto-seg-v').textContent = Ajustes.autoSeg ? Ajustes.autoSeg + ' s' : 'sin límite';
   if (document.activeElement !== $('aj-nombre')) $('aj-nombre').value = Ajustes.nombre || '';
   pintarDebiles();
 }
@@ -1558,6 +1667,7 @@ document.querySelectorAll('.sel-duracion').forEach(s => {
   s.onchange = () => { Ajustes.duracion = +s.value; guardarAjustes(); pintarAjustes(); };
 });
 $('aj-fallo').onchange = () => { Ajustes.sonidoFallo = $('aj-fallo').value; guardarAjustes(); Sonido.error(); };
+[$('aj-auto'), $('pl-auto')].forEach(c => c.onchange = () => { Ajustes.autoSubir = c.checked; guardarAjustes(); pintarAjustes(); Pulsar.pintarRacha(); pintarProgreso(); });
 $('aj-fallo-probar').onclick = () => Sonido.error();
 $('aj-nombre').oninput =() => { Ajustes.nombre = normalizar($('aj-nombre').value).replace(/ /g, ''); guardarAjustes(); };
 // Las letras (y abreviaturas) que más se fallan, con una barra de 0 a 100 %.
@@ -1569,7 +1679,7 @@ function pintarDebiles() {
   }).join('') : '<div class="muted">Aún no hay datos: haz algún ejercicio.</div>';
 }
 $('aj-reset-stats').onclick = () => { if (confirm('¿Olvidar qué letras te cuestan más? El repaso empezará de cero.')) { Stats.reiniciar(); pintarDebiles(); } };
-[['aj-wpm', 'wpm'], ['aj-ef', 'efectiva'], ['aj-tono', 'tono'], ['aj-vol', 'volumen'], ['aj-grupos', 'grupos'], ['aj-ayuda', 'ayuda'], ['rp-wpm', 'wpm'], ['rp-ef', 'efectiva']].forEach(([id, k]) => {
+[['aj-wpm', 'wpm'], ['aj-ef', 'efectiva'], ['aj-tono', 'tono'], ['aj-vol', 'volumen'], ['aj-grupos', 'grupos'], ['aj-ayuda', 'ayuda'], ['rp-wpm', 'wpm'], ['rp-ef', 'efectiva'], ['aj-auto-pct', 'autoPct'], ['aj-auto-seg', 'autoSeg']].forEach(([id, k]) => {
   $(id).oninput = () => {
     Ajustes[k] = +$(id).value;
     if (k === 'wpm' && Ajustes.efectiva > Ajustes.wpm) Ajustes.efectiva = Ajustes.wpm;
@@ -1643,8 +1753,32 @@ const RedFirebase = {
   async crearChat({ id, tipo, nombre, miembros }, yo) {
     const ref = id ? this.convs().doc(id) : this.convs().doc();
     if (id && (await ref.get()).exists) return ref.id;
-    await ref.set({ tipo, nombre: nombre || '', miembros, creador: yo, creado: this.ts(), ultimo: { de: yo, ts: this.ts() } });
+    const datos = { tipo, nombre: nombre || '', miembros, creador: yo, creado: this.ts(), ultimo: { de: yo, ts: this.ts() } };
+    if (tipo === 'grupo') datos.invitacion = codigoInvitacion();
+    await ref.set(datos);
     return ref.id;
+  },
+  // Borra el chat entero (sus mensajes y el propio chat) para todos sus miembros.
+  async borrarChat(cid) {
+    const ref = this.convs().doc(cid), ms = await ref.collection('mensajes').get(), b = this.db.batch();
+    ms.docs.forEach(d => b.delete(d.ref)); b.delete(ref);
+    await b.commit();
+  },
+  // Entrar en un grupo con el código del enlace de invitación (las reglas lo comprueban).
+  unirse(cid, codigo, yo) {
+    return this.convs().doc(cid).update({ miembros: firebase.firestore.FieldValue.arrayUnion(yo), pase: codigo });
+  },
+  // Los grupos creados antes de las invitaciones no tienen código: lo pone el creador.
+  async asegurarInvitacion(c) {
+    if (c.invitacion) return c.invitacion;
+    const cod = codigoInvitacion(); await this.convs().doc(c.id).update({ invitacion: cod }); return cod;
+  },
+  // «Conectado» = la app abierta en los últimos 2 minutos y medio; se avisa cada minuto.
+  latido(yo) { return this.perfiles().doc(yo).update({ visto: this.ts() }).catch(() => {}); },
+  async conectados() {
+    const desde = firebase.firestore.Timestamp.fromMillis(Date.now() - 150000);
+    const s = await this.perfiles().where('visto', '>', desde).get();
+    return s.docs.map(d => ({ key: d.id, ...d.data() }));
   },
   async enviar(cid, { de, texto, modo }) {
     const conv = this.convs().doc(cid), msg = conv.collection('mensajes').doc(), b = this.db.batch();
@@ -1704,8 +1838,25 @@ const RedLocal = {
   nuevoId: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
   async crearChat({ id, tipo, nombre, miembros }, yo) {
     const db = this.db(); id ||= this.nuevoId();
-    if (!db.convs[id]) { db.convs[id] = { tipo, nombre: nombre || '', miembros, creador: yo, creado: Date.now(), ultimo: { de: yo, ts: Date.now() }, mensajes: {} }; this.grabar(db); }
+    if (!db.convs[id]) {
+      db.convs[id] = { tipo, nombre: nombre || '', miembros, creador: yo, creado: Date.now(), ultimo: { de: yo, ts: Date.now() }, mensajes: {} };
+      if (tipo === 'grupo') db.convs[id].invitacion = codigoInvitacion();
+      this.grabar(db);
+    }
     return id;
+  },
+  async borrarChat(cid) { const db = this.db(); delete db.convs[cid]; this.grabar(db); },
+  async unirse(cid, codigo, yo) {
+    const db = this.db(), c = db.convs[cid];
+    if (!c || c.invitacion !== codigo) throw new Error('La invitación no es válida o el grupo ya no existe.');
+    if (!c.miembros.includes(yo)) c.miembros.push(yo);
+    this.grabar(db);
+  },
+  async asegurarInvitacion(c) { const db = this.db(); db.convs[c.id].invitacion ||= codigoInvitacion(); this.grabar(db); return db.convs[c.id].invitacion; },
+  async latido(yo) { const db = this.db(); if (db.usuarios[yo]) { db.usuarios[yo].visto = Date.now(); guardar('morse-localdb', db); } },
+  async conectados() {
+    return Object.entries(this.db().usuarios).filter(([, u]) => u.visto > Date.now() - 150000)
+      .map(([key, u]) => ({ key, nombre: u.nombre || key, indicativo: u.indicativo || '' }));
   },
   async enviar(cid, { de, texto, modo }) {
     const db = this.db(), c = db.convs[cid];
@@ -1719,6 +1870,8 @@ const RedLocal = {
 };
 
 const Red = (FIREBASE_CONFIG && !new URLSearchParams(location.search).has('local')) ? RedFirebase : RedLocal;
+// Código secreto de cada grupo: va en el enlace de invitación y sin él no se puede entrar.
+function codigoInvitacion() { const a = new Uint8Array(9); crypto.getRandomValues(a); return [...a].map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 14); }
 
 // ---------------------------------------------------------------- mensajes (chats)
 // Cada chat es individual (dos personas) o de grupo. Los mensajes llegan cerrados: cada
@@ -1732,9 +1885,64 @@ const Msg = {
     this.quitar.forEach(f => f()); this.quitar = []; this.cerrarChat(true);
     Object.assign(this, { yo: call, chats: [], conocidos: {}, primera: true });
     this.vista(call ? 'lista' : 'login');
+    this.pintarInvitacionLogin();
     if (!call) return this.pintarBadge();
     this.cargarPerfiles([call]);
     this.quitar.push(Red.escucharChats(call, l => this.llegan(l)));
+    // Presencia: mientras la app está abierta y a la vista se avisa cada minuto.
+    const latir = () => { if (!document.hidden) Red.latido(call).then(() => this.pintarConectados()); };
+    latir();
+    const t = setInterval(latir, 60000), v = () => latir();
+    document.addEventListener('visibilitychange', v);
+    this.quitar.push(() => { clearInterval(t); document.removeEventListener('visibilitychange', v); });
+    this.procesarInvitacion();
+  },
+  // ---- conectados ahora
+  async pintarConectados() {
+    if (!this.yo) return;
+    let l = [];
+    try { l = (await Red.conectados()).filter(u => u.key !== this.yo); } catch {}
+    l.forEach(u => { this.perfiles[u.key] = { nombre: u.nombre, indicativo: u.indicativo }; });
+    $('m-conectados').innerHTML = `<b>🟢 Conectados ahora (${l.length})</b>` + (l.length
+      ? `<div class="chips">${l.map(u => `<button class="chip-usr" data-usr="${esc(u.key)}">${this.nomHtml(u.key)}</button>`).join('')}</div>
+         <div class="muted" style="margin-top:4px">Toca a alguien para chatear.</div>`
+      : '<div class="muted">Ahora mismo no hay nadie más con la app abierta.</div>');
+  },
+  // ---- invitaciones a grupos por enlace
+  pendiente() { return leer('morse-invitacion', null); },
+  pintarInvitacionLogin() {
+    const p = this.pendiente();
+    $('lg-invitacion').hidden = !p;
+    if (p) $('lg-invitacion').textContent = `📩 Te han invitado al grupo «${p.nombre}». Entra o crea tu cuenta para unirte.`;
+  },
+  procesarInvitacion() {
+    const p = this.pendiente(); if (!p || !this.yo) return;
+    $('inv-texto').textContent = `Te han invitado al grupo «${p.nombre}». ¿Quieres entrar?`;
+    $('inv-velo').hidden = false; $('invitacion').hidden = false;
+  },
+  async aceptarInvitacion(si) {
+    const p = this.pendiente();
+    $('inv-velo').hidden = true; $('invitacion').hidden = true; localStorage.removeItem('morse-invitacion');
+    this.pintarInvitacionLogin();
+    if (!si || !p) return;
+    try {
+      if (!this.chats.some(c => c.id === p.cid)) await Red.unirse(p.cid, p.codigo, this.yo);
+      toast(`👥 Ya estás en «${p.nombre}»`); this.abrirChat(p.cid);
+    } catch (e) { toast('No se pudo entrar: la invitación no es válida o el grupo ya no existe.'); }
+  },
+  async invitar(via) {
+    const c = this.chat();
+    try {
+      const cod = await Red.asegurarInvitacion(c);
+      const url = (URL_APP || location.origin + location.pathname) + `#unirse/${c.id}/${cod}/${encodeURIComponent(c.nombre || 'Grupo')}`;
+      const txt = `📻 ${this.nomTxt(this.yo)} te invita al grupo «${c.nombre}» para practicar Morse. Toca el enlace para unirte:`;
+      compartirTexto(txt, url, via);
+    } catch (e) { toast(e.message); }
+  },
+  async borrarChat() {
+    const c = this.chat(), grupo = c.tipo === 'grupo';
+    if (!confirm(grupo ? `¿Borrar el grupo «${c.nombre}»? Se borra para todos sus miembros.` : '¿Borrar esta conversación? Se borra también para tu compañero.')) return;
+    try { const id = c.id; this.cerrarChat(); await Red.borrarChat(id); toast(grupo ? 'Grupo borrado' : 'Conversación borrada'); } catch (e) { toast(e.message); }
   },
   vista(v) { ['login', 'lista', 'nuevo', 'chat', 'desc'].forEach(x => $('m-' + x).hidden = x !== v); $('main').scrollTop = 0; },
   // Avisa cuando otro escribe en un chat (salvo en el que tienes abierto).
@@ -1767,8 +1975,8 @@ const Msg = {
     const n = this.nombre(k);
     return miembros.some(m => m !== k && this.nombre(m) === n) ? this.nomTxt(k) : n;
   },
-  nomTxt(k) { const n = this.perfiles[k]?.nombre; return n && n.toUpperCase() !== k ? `${n} (${k})` : k; },
-  nomHtml(k) { const n = this.perfiles[k]?.nombre; return n && n.toUpperCase() !== k ? `${esc(n)} <small>${esc(k)}</small>` : esc(k); },
+  nomTxt(k) { const n = this.perfiles[k]?.nombre; return n && n.toUpperCase() !== k ? `${n} (${k})` : (n || k); },
+  nomHtml(k) { const n = this.perfiles[k]?.nombre; return n && n.toUpperCase() !== k ? `${esc(n)} <small>${esc(k)}</small>` : esc(n || k); },
   pintarYo() { if (this.yo) $('m-yo').textContent = this.nomTxt(this.yo); },
   titulo(c) { return c.tipo === 'grupo' ? (c.nombre || 'Grupo') : this.nomTxt(c.miembros.find(m => m !== this.yo) || c.miembros[0]); },
   sinLeer(c) { return c.ultimo?.de && c.ultimo.de !== this.yo && fecha(c.ultimo.ts) > (this.visto[this.yo + '|' + c.id] || 0); },
@@ -1820,6 +2028,7 @@ const Msg = {
     this.quitarChat = Red.escucharMensajes(cid, l => { this.mensajes = l; this.pintarChat(); });
   },
   cerrarChat(silencioso) {
+    if (Desc.m) Desc.cerrar(true);
     this.quitarChat?.(); this.quitarChat = null; this.abierto = null; this.mensajes = [];
     if (!silencioso) { this.vista('lista'); this.pintarLista(); }
   },
@@ -1828,16 +2037,22 @@ const Msg = {
     const c = this.chat(); if (!c) return;
     $('ch-titulo').textContent = (c.tipo === 'grupo' ? '👥 ' : '') + this.titulo(c);
     $('ch-sub').textContent = c.tipo === 'grupo' ? c.miembros.map(m => this.corto(m)).join(', ') : 'Chat individual';
-    $('ch-info-btn').hidden = c.tipo !== 'grupo';
     if (!$('ch-info').hidden) this.pintarInfo();
   },
+  // Menú ⋮ del chat: miembros, invitar, salir y borrar.
   pintarInfo() {
-    const c = this.chat(), admin = c.creador === this.yo;
-    $('ch-info').innerHTML = `<b>Miembros</b><p>${c.miembros.map(m => this.nomHtml(m) + (m === c.creador ? ' (creador)' : '')).join(' · ')}</p>
-      ${admin ? `<div class="fila" style="flex-wrap:nowrap"><input type="text" id="ch-anadir-c" placeholder="Añadir indicativo" autocapitalize="characters"><button id="ch-anadir">＋</button></div>` : ''}
-      <div class="fila" style="margin-top:10px"><button id="ch-salir-grupo">🚪 Salir del grupo</button></div>`;
-    if (admin) $('ch-anadir').onclick = () => this.anadirMiembro();
-    $('ch-salir-grupo').onclick = () => this.salirGrupo();
+    const c = this.chat(); if (!c) return;
+    const admin = c.creador === this.yo, grupo = c.tipo === 'grupo';
+    $('ch-info').innerHTML = grupo ? `<b>Miembros</b><p>${c.miembros.map(m => this.nomHtml(m) + (m === c.creador ? ' (creador)' : '')).join(' · ')}</p>
+      ${admin ? `<div class="fila" style="flex-wrap:nowrap"><input type="text" id="ch-anadir-c" placeholder="Añadir usuario o indicativo" autocapitalize="characters"><button id="ch-anadir">＋</button></div>` : ''}
+      <b style="display:block;margin-top:12px">Invitar con un enlace</b>
+      <div class="fila" style="margin-top:6px"><button data-inv="compartir">📤 Compartir</button><button data-inv="wa">WhatsApp</button><button data-inv="tg">Telegram</button></div>
+      <div class="fila" style="margin-top:12px"><button id="ch-salir-grupo">🚪 Salir del grupo</button>${admin ? '<button id="ch-borrar" class="peligro">🗑 Borrar grupo</button>' : ''}</div>`
+      : `<div class="fila"><button id="ch-borrar" class="peligro">🗑 Borrar conversación</button></div>`;
+    if (admin && grupo) $('ch-anadir').onclick = () => this.anadirMiembro();
+    if (grupo) $('ch-salir-grupo').onclick = () => this.salirGrupo();
+    if ($('ch-borrar')) $('ch-borrar').onclick = () => this.borrarChat();
+    $('ch-info').querySelectorAll('[data-inv]').forEach(b => b.onclick = () => this.invitar(b.dataset.inv));
   },
   async anadirMiembro() {
     const call = $('ch-anadir-c').value.trim().toUpperCase(), c = this.chat();
@@ -1850,7 +2065,14 @@ const Msg = {
   async salirGrupo() {
     const c = this.chat();
     if (!confirm(`¿Salir del grupo «${c.nombre}»? Dejarás de ver sus mensajes.`)) return;
-    try { const id = c.id; this.cerrarChat(); await Red.cambiarMiembros(id, c.miembros.filter(m => m !== this.yo)); } catch (e) { toast(e.message); }
+    // El grupo sigue con los que quedan; si se va el último y es el creador, se borra.
+    try {
+      const id = c.id, quedan = c.miembros.filter(m => m !== this.yo);
+      this.cerrarChat();
+      if (quedan.length || c.creador !== this.yo) await Red.cambiarMiembros(id, quedan);
+      else await Red.borrarChat(id);
+      toast(`Has salido de «${c.nombre}»`);
+    } catch (e) { toast(e.message); }
   },
   // Estado de un mensaje para una persona: null (sin abrir), {p, f} (en curso), {ok} o {r}.
   hecho: r => !!(r && (r.ok || r.r)),
@@ -1860,15 +2082,23 @@ const Msg = {
     if (r.r) return '🏳';
     return `${Math.round((r.p || 0) * 100)} %`;
   },
-  pendientes() { return this.mensajes.filter(m => m.de !== this.yo && !this.hecho(m.resueltos?.[this.yo])); },
+  // Los mensajes en texto normal (modo 'texto') no se descifran ni bloquean la respuesta.
+  pendientes() { return this.mensajes.filter(m => m.de !== this.yo && m.modo !== 'texto' && !this.hecho(m.resueltos?.[this.yo])); },
   pintarChat() {
     const c = this.chat(); if (!c) return;
     this.visto[this.yo + '|' + c.id] = Math.max(this.visto[this.yo + '|' + c.id] || 0, fecha(c.ultimo?.ts)); guardar('morse-visto', this.visto);
     const grupo = c.tipo === 'grupo';
     const otros = m => c.miembros.filter(x => x !== m.de);
+    // El descifrador se aparta antes de repintar (si no, se perdería) y luego vuelve a su burbuja.
+    const panel = $('ds-panel'); $('m-desc').appendChild(panel);
+    const descifrando = Desc.m && Desc.cid === c.id ? Desc.m.id : null;
     $('ch-mensajes').innerHTML = this.mensajes.length ? this.mensajes.map(m => {
       const mio = m.de === this.yo, r = m.resueltos || {}, yoHecho = this.hecho(r[this.yo]);
       const quien = otros(m).map(x => `<span>${esc(this.corto(x))} ${this.estadoDe(r[x])}</span>`).join(' ');
+      if (m.modo === 'texto') {
+        return `<div class="burbuja texto${mio ? ' mia' : ''}">${mio ? '' : `<div class="de">${this.nomHtml(m.de)}</div>`}
+          <div class="txt-normal">${esc(m.texto)}</div><div class="info">💬 texto normal · ${hace(fecha(m.creado))}</div></div>`;
+      }
       if (mio) {
         return `<div class="burbuja mia"><div class="txt">${esc(m.texto)}</div>
           <div class="info">${quien} · ${hace(fecha(m.creado))}</div></div>`;
@@ -1878,23 +2108,35 @@ const Msg = {
         return `<div class="burbuja"><div class="de">${this.nomHtml(m.de)}</div><div class="txt">${esc(m.texto)}</div>
           <div class="info">${mi.ok ? `✓ tú ${fallosTxt(mi.f)}${mi.s ? ` · ${mmss(mi.s)}` : ''}` : '🏳 te rendiste'}${grupo ? ' · ' + quien : ''} · <a href="#" data-oir="${esc(m.id)}">🔊</a></div></div>`;
       }
+      if (m.id === descifrando) return `<div class="burbuja bloq abierta" data-desc="${esc(m.id)}"><div class="de">${this.nomHtml(m.de)}</div></div>`;
       const pista = m.modo === 'facil' ? `${m.texto.replace(/ /g, '').length} letras · fácil` : 'difícil';
       const p = r[this.yo]?.p ? ` · llevas ${Math.round(r[this.yo].p * 100)} %` : '';
       return `<div class="burbuja bloq" data-desc="${esc(m.id)}"><div class="de">${this.nomHtml(m.de)}</div>
         <div class="txt">🔒 Mensaje en Morse</div><div class="info">${pista}${p} · ${hace(fecha(m.creado))} — toca para descifrar</div></div>`;
     }).join('') : '<div class="vacio">Aún no hay mensajes. ¡Escribe el primero!</div>';
-    // Para responder hay que descifrar antes lo que te han mandado.
+    const dentro = descifrando && $('ch-mensajes').querySelector(`[data-desc="${CSS.escape(descifrando)}"]`);
+    if (dentro) { dentro.appendChild(panel); if (!Desc.hecho) Desc.enfocar(); }
+    // Para responder en Morse hay que descifrar antes lo que te han mandado;
+    // mientras tanto se puede contestar en texto normal.
     const pend = this.pendientes();
-    $('ch-bloqueo').hidden = !pend.length; $('ch-escribir').hidden = !!pend.length;
-    if (pend.length) $('ch-bloqueo').innerHTML = `🔒 Descifra ${pend.length === 1 ? `el mensaje de ${esc(this.corto(pend[0].de))}` : `los ${pend.length} mensajes pendientes`} para poder responder.
+    $('ch-bloqueo').hidden = !pend.length;
+    document.querySelectorAll('#nv-modo option:not([value=texto])').forEach(o => o.disabled = !!pend.length);
+    if (pend.length && $('nv-modo').value !== 'texto') { $('nv-modo').value = 'texto'; $('nv-modo').onchange(); }
+    if (pend.length) $('ch-bloqueo').innerHTML = `🔒 Descifra ${pend.length === 1 ? `el mensaje de ${esc(this.corto(pend[0].de))}` : `los ${pend.length} mensajes pendientes`} para responder en Morse (en texto normal sí puedes).
       <button class="pri" id="ch-ir-desc">Descifrar</button>`;
     if (pend.length) $('ch-ir-desc').onclick = () => Desc.abrir(pend[0], c.id);
-    requestAnimationFrame(() => { $('main').scrollTop = $('main').scrollHeight; });
+    // Abajo del todo, salvo mientras se descifra (para no mover la burbuja abierta).
+    if (!descifrando) requestAnimationFrame(() => { $('main').scrollTop = $('main').scrollHeight; });
+  },
+  // En Morse se quita lo que no existe en Morse; en texto normal se envía tal cual.
+  textoAEnviar() {
+    const v = $('nv-texto').value;
+    return ($('nv-modo').value === 'texto' ? v.trim().replace(/\s+/g, ' ') : normalizar(v)).slice(0, MAX_TEXTO);
   },
   async enviar() {
-    const texto = normalizar($('nv-texto').value).slice(0, MAX_TEXTO), modo = $('nv-modo').value;
+    const texto = this.textoAEnviar(), modo = $('nv-modo').value;
     if (!texto) return toast('Escribe el mensaje.');
-    if (this.pendientes().length) return toast('Antes descifra lo que te han mandado.');
+    if (modo !== 'texto' && this.pendientes().length) return toast('Antes descifra lo que te han mandado.');
     $('nv-enviar').disabled = true;
     try { await Red.enviar(this.abierto, { de: this.yo, texto, modo }); $('nv-texto').value = ''; $('nv-cuenta').textContent = 0; }
     catch (e) { toast(e.message); }
@@ -1903,8 +2145,15 @@ const Msg = {
 };
 
 $('nv-max').textContent = MAX_TEXTO;
-$('nv-texto').oninput = () => { $('nv-cuenta').textContent = normalizar($('nv-texto').value).length; };
+$('nv-texto').oninput = () => { $('nv-cuenta').textContent = Msg.textoAEnviar().length; };
 $('nv-oir').onclick = () => { const t = normalizar($('nv-texto').value); if (t) Sonido.reproducir(t); };
+// En texto normal el cuadro no va en mayúsculas ni hay botón de escuchar.
+$('nv-modo').onchange = () => {
+  const txt = $('nv-modo').value === 'texto';
+  $('nv-texto').classList.toggle('normal', txt); $('nv-oir').hidden = txt;
+  $('nv-texto').placeholder = txt ? 'Escribe tu mensaje: le llegará tal cual, sin Morse' : 'Escribe tu mensaje: le llegará en Morse';
+  $('nv-texto').oninput();
+};
 $('nv-enviar').onclick = () => Msg.enviar();
 $('m-nuevo-ind').onclick = () => Msg.formNuevo(false);
 $('m-nuevo-grupo').onclick = () => Msg.formNuevo(true);
@@ -1912,9 +2161,16 @@ $('nv-cancelar').onclick = () => Msg.vista('lista');
 $('nv-crear').onclick = () => Msg.crear();
 $('nv-para').onkeydown = e => { if (e.key === 'Enter') Msg.crear(); };
 $('m-chats').onclick = e => { const it = e.target.closest('.item'); if (it) Msg.abrirChat(it.dataset.id); };
+$('m-conectados').onclick = e => {
+  const u = e.target.closest('[data-usr]'); if (!u) return;
+  Msg.nuevoGrupo = false; $('nv-para').value = u.dataset.usr; $('nv-nombre').value = ''; Msg.crear();
+};
+$('inv-si').onclick = () => Msg.aceptarInvitacion(true);
+$('inv-no').onclick = () => Msg.aceptarInvitacion(false);
 $('ch-volver').onclick = () => Msg.cerrarChat();
 $('ch-info-btn').onclick = () => { $('ch-info').hidden = !$('ch-info').hidden; if (!$('ch-info').hidden) Msg.pintarInfo(); };
 $('ch-mensajes').onclick = e => {
+  if (e.target.closest('#ds-panel')) return;
   const b = e.target.closest('[data-desc]');
   if (b) return Desc.abrir(Msg.mensajes.find(m => m.id === b.dataset.desc), Msg.abierto);
   const o = e.target.closest('[data-oir]');
@@ -1974,8 +2230,10 @@ $('lg-pass').onkeydown = e => { if (e.key === 'Enter') login(); };
 // así que no se sabe la longitud del mensaje.
 const Desc = {
   m: null, cid: null, t: [], g: [], cur: 0, fallos: 0, inicio: 0, hecho: false, guardarT: null,
+  // Se descifra dentro de la propia burbuja del chat, sin cambiar de pantalla.
   abrir(m, cid) {
-    if (!m) return;
+    if (!m || this.m?.id === m.id) return;
+    if (this.m) this.cerrar(true);
     this.m = m; this.cid = cid; this.t = [...m.texto]; this.dificil = m.modo === 'dificil';
     const p = leer('morse-prog-' + Msg.yo + '-' + m.id, null), mio = m.resueltos?.[Msg.yo];
     this.g = p?.g || []; this.fallos = p?.fallos || mio?.f || 0; this.inicio = p?.inicio || 0;
@@ -1983,7 +2241,6 @@ const Desc = {
     this.hecho = Msg.hecho(mio); this.rendido = !!mio?.r; this.segundos = mio?.s;
     if (this.hecho) this.g = [...this.t];
     this.cur = this.libre(-1, 1);
-    Msg.vista('desc');
     $('ds-de').textContent = Msg.nomTxt(m.de);
     $('ds-modo').textContent = this.dificil ? 'modo difícil' : 'modo fácil';
     $('ds-vel').textContent = `${Ajustes.wpm}/${Math.min(Ajustes.efectiva, Ajustes.wpm)} ppm · ${Ajustes.tono} Hz`;
@@ -1992,10 +2249,15 @@ const Desc = {
       : 'Toca una casilla para oír solo esa letra. Lo acertado se queda en verde; lo rojo puedes cambiarlo.';
     $('ds-tablero').className = 'tablero' + (this.dificil ? ' dificil' : '');
     this.pintar();
-    if (!this.hecho) this.enfocar();
+    Msg.pintarChat();
+    $('ds-panel').closest('.burbuja')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   },
-  // Al salir se manda ya el avance que estuviera pendiente de guardar.
-  cerrar() { Sonido.parar(); this.enviarPendiente?.(); this.m = null; Msg.vista('chat'); Msg.pintarChat(); },
+  // Al cerrar se manda ya el avance que estuviera pendiente de guardar.
+  cerrar(sinPintar) {
+    Sonido.parar(); this.enviarPendiente?.(); this.m = null;
+    $('ds-captura').blur();
+    if (!sinPintar) Msg.pintarChat();
+  },
   ok(i) { return i < this.t.length && this.g[i] === this.t[i]; },
   // Siguiente (dir=1) o anterior (dir=-1) posición sin acertar a partir de i.
   libre(i, dir) {
@@ -2045,9 +2307,14 @@ const Desc = {
     this.segundos = this.inicio ? Math.round((Date.now() - this.inicio) / 1000) : 0;
     this.pintar();
     if (!rendido) { navigator.vibrate?.([40, 40, 40, 40, 200]); setTimeout(() => Sonido.reproducir('R'), 300); }
-    try {
-      await Red.resolver(this.cid, this.m.id, Msg.yo, rendido ? { p, f: this.fallos, s: this.segundos, r: true } : { p: 1, f: this.fallos, s: this.segundos, ok: true });
-    } catch (e) { toast('No se pudo guardar el resultado: ' + e.message); }
+    toast(rendido ? '🏳 Este era el mensaje' : `🎉 ¡Descifrado! ${fallosTxt(this.fallos)}`);
+    // La burbuja pasa a enseñar el texto en cuanto se acaba, sin esperar al servidor.
+    const m = this.m, cid = this.cid;
+    const datos = rendido ? { p, f: this.fallos, s: this.segundos, r: true } : { p: 1, f: this.fallos, s: this.segundos, ok: true };
+    m.resueltos = { ...m.resueltos, [Msg.yo]: datos };
+    this.cerrar();
+    try { await Red.resolver(cid, m.id, Msg.yo, datos); }
+    catch (e) { toast('No se pudo guardar el resultado: ' + e.message); }
   },
   pintar() {
     const tab = $('ds-tablero');
@@ -2079,7 +2346,7 @@ const Desc = {
       fin.innerHTML = `<h2>${this.rendido ? 'El mensaje era' : '¡Descifrado! 🎉'}</h2><p class="final">${esc(this.m.texto)}</p>
         <p class="muted">${fallosTxt(this.fallos)}${seg ? ` · ${mmss(seg)}` : ''}</p>
         <div class="fila"><button id="ds-responder" class="pri">↩ Volver al chat y responder</button></div>`;
-      $('ds-responder').onclick = () => { this.cerrar(); if (!$('ch-escribir').hidden) $('nv-texto').focus(); };
+      $('ds-responder').onclick = () => { this.cerrar(); $('nv-texto').focus(); };
     }
   },
   enfocar() { const c = $('ds-captura'); c.value = '##'; c.focus({ preventScroll: true }); c.setSelectionRange(2, 2); },
@@ -2124,6 +2391,7 @@ $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará com
 // Al abrir una versión nueva se enseña qué ha cambiado desde la última que se vio.
 // Si la app lleva rato abierta y se publica otra, se avisa para recargar.
 const NOVEDADES = [
+  ['0.10.0', ['Descifra los mensajes dentro del propio chat, sin cambiar de pantalla.', 'Menú ⋮ en cada chat: borrar la conversación, salir de un grupo o borrarlo (si lo creaste).', 'Invita a un grupo por WhatsApp o Telegram: el enlace abre la app y te pregunta si quieres entrar.', 'En Mensajes ves quién está conectado ahora y puedes chatear con un toque.', 'Icono nuevo y botón para instalar la app en el móvil o el PC.', 'En los chats puedes mandar también un mensaje en texto normal (sin Morse) para decir algo concreto.', 'Aprender letras: pasas de lección automáticamente al llegar a los aciertos y el tiempo que elijas en Ajustes.']],
   ['0.9.2', ['Al crear la cuenta, el nombre es obligatorio y el indicativo opcional. Si no tienes indicativo, tu usuario sale de tu nombre.', 'En los chats se ve el nombre de cada uno junto a su usuario.', 'La contraseña puede ser corta (mínimo 4) y solo se pide al entrar desde otro aparato.']],
   ['0.9.1', ['Palabras: toca entre dos letras para meter la que falta o borrar ahí, sin tener que borrar todo.']],
   ['0.9.0', ['Chats individuales y de grupo: cada mensaje llega en Morse y, al descifrarlo, aparece en la conversación.',
@@ -2156,6 +2424,23 @@ function vigilarActualizaciones() {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (habia) $('aviso-version').hidden = false; });
 }
 $('aviso-version').onclick = () => location.reload();
+
+// Instalar la app: Chrome/Edge (Android y PC) avisan con «beforeinstallprompt»; en iPhone
+// no hay aviso, así que se explica cómo hacerlo desde Safari.
+let avisoInstalar = null;
+const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); avisoInstalar = e; $('instalar').hidden = false; });
+addEventListener('appinstalled', () => { $('instalar').hidden = true; toast('📲 App instalada: ya la tienes con su icono.'); });
+if (esIOS && !instalada()) $('instalar').hidden = false;
+$('instalar').onclick = async () => {
+  if (avisoInstalar) {
+    avisoInstalar.prompt();
+    const r = await avisoInstalar.userChoice; avisoInstalar = null;
+    if (r.outcome === 'accepted') $('instalar').hidden = true;
+  } else if (esIOS) { $('ios-velo').hidden = false; $('ios-instalar').hidden = false; }
+};
+$('ios-ok').onclick = $('ios-velo').onclick = () => { $('ios-velo').hidden = true; $('ios-instalar').hidden = true; };
 
 // ---------------------------------------------------------------- arranque
 (async function () {

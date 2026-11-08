@@ -1,9 +1,10 @@
 rules_version = '2';
 
 // App Morse.
-// Las cuentas son email/contraseña con el email <indicativo>@indicativos.invalid,
-// así que el indicativo de quien hace la petición sale del propio token.
-// 'indicativos' solo sirve para comprobar que un compañero existe.
+// Las cuentas son email/contraseña con el email <usuario>@indicativos.invalid,
+// así que el usuario de quien hace la petición sale del propio token.
+// 'indicativos' guarda el perfil de cada usuario (y su último «latido» para saber
+// quién está conectado).
 // 'conversaciones' son los chats (individuales o de grupo) y dentro van sus mensajes.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,47 +12,61 @@ service cloud.firestore {
     function dentro() { return request.auth != null && request.auth.token.email is string; }
     function yo() { return request.auth.token.email.split('@')[0].upper(); }
 
-    // Perfil de cada usuario: nombre (obligatorio, puede repetirse) e indicativo (opcional).
+    // Perfil: nombre (obligatorio, puede repetirse), indicativo (opcional) y visto (latido).
     match /indicativos/{call} {
       allow read: if dentro();
       allow create, update: if dentro() && call == yo()
-        && request.resource.data.keys().hasOnly(['creado', 'nombre', 'indicativo'])
+        && request.resource.data.keys().hasOnly(['creado', 'nombre', 'indicativo', 'visto'])
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 40
-        && (!('indicativo' in request.resource.data) || (request.resource.data.indicativo is string && request.resource.data.indicativo.size() <= 12));
+        && (!('indicativo' in request.resource.data) || (request.resource.data.indicativo is string && request.resource.data.indicativo.size() <= 12))
+        && (!('visto' in request.resource.data) || request.resource.data.visto == request.time);
     }
 
     match /conversaciones/{cid} {
+      function miembroDe(d) { return yo() in d.miembros; }
+
       // resource == null: se puede comprobar si un chat individual ya existe.
-      allow read: if dentro() && (resource == null || yo() in resource.data.miembros);
+      allow read: if dentro() && (resource == null || miembroDe(resource.data));
 
       allow create: if dentro()
-        && request.resource.data.keys().hasOnly(['tipo', 'nombre', 'miembros', 'creador', 'creado', 'ultimo'])
+        && request.resource.data.keys().hasOnly(['tipo', 'nombre', 'miembros', 'creador', 'creado', 'ultimo', 'invitacion'])
         && request.resource.data.creador == yo()
         && yo() in request.resource.data.miembros
         && request.resource.data.miembros.size() >= 2 && request.resource.data.miembros.size() <= 30
         && request.resource.data.tipo in ['individual', 'grupo']
         && (request.resource.data.tipo == 'grupo' || request.resource.data.miembros.size() == 2);
 
-      allow update: if dentro() && yo() in resource.data.miembros && (
-        // Cualquiera del chat marca el último mensaje.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimo'])
-        // El creador de un grupo cambia el nombre o los miembros.
-        || (resource.data.tipo == 'grupo' && resource.data.creador == yo()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'nombre'])
+      allow update: if dentro() && (
+        (miembroDe(resource.data) && (
+          // Cualquiera del chat marca el último mensaje.
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimo'])
+          // El creador de un grupo cambia el nombre, los miembros o el código de invitación.
+          || (resource.data.tipo == 'grupo' && resource.data.creador == yo()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'nombre', 'invitacion'])
+              && request.resource.data.miembros.size() <= 30)
+          // Cualquiera puede salirse de un grupo (quitarse a sí mismo y a nadie más).
+          || (resource.data.tipo == 'grupo'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros'])
+              && request.resource.data.miembros.toSet() == resource.data.miembros.toSet().difference([yo()].toSet()))
+        ))
+        // Entrar en un grupo con el enlace de invitación: hay que traer su código («pase»)
+        // y solo se puede añadir uno mismo.
+        || (!miembroDe(resource.data) && resource.data.tipo == 'grupo'
+            && resource.data.invitacion is string
+            && request.resource.data.pase == resource.data.invitacion
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'pase'])
+            && request.resource.data.miembros.toSet() == resource.data.miembros.toSet().union([yo()].toSet())
             && request.resource.data.miembros.size() <= 30)
-        // Cualquiera puede salirse de un grupo (quitarse a sí mismo y a nadie más).
-        || (resource.data.tipo == 'grupo'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros'])
-            && request.resource.data.miembros.toSet() == resource.data.miembros.toSet().difference([yo()].toSet()))
       );
 
-      allow delete: if dentro() && resource.data.creador == yo();
+      // Un grupo lo borra su creador; una conversación individual, cualquiera de los dos.
+      allow delete: if dentro() && (resource.data.creador == yo()
+        || (resource.data.tipo == 'individual' && miembroDe(resource.data)));
 
       match /mensajes/{mid} {
-        function miembro() {
-          return yo() in get(/databases/$(database)/documents/conversaciones/$(cid)).data.miembros;
-        }
+        function chat() { return get(/databases/$(database)/documents/conversaciones/$(cid)).data; }
+        function miembro() { return yo() in chat().miembros; }
         allow read: if dentro() && miembro();
 
         allow create: if dentro() && miembro()
@@ -59,7 +74,7 @@ service cloud.firestore {
           && request.resource.data.de == yo()
           && request.resource.data.texto is string
           && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 160
-          && request.resource.data.modo in ['facil', 'dificil']
+          && request.resource.data.modo in ['facil', 'dificil', 'texto']
           && request.resource.data.resueltos.size() == 0;
 
         // Cada uno solo apunta su propio progreso dentro de 'resueltos'.
@@ -67,7 +82,9 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resueltos'])
           && request.resource.data.resueltos.diff(resource.data.resueltos).affectedKeys().hasOnly([yo()]);
 
-        allow delete: if dentro() && resource.data.de == yo();
+        // Un mensaje lo borra quien lo escribió, o quien puede borrar el chat entero.
+        allow delete: if dentro() && (resource.data.de == yo() || chat().creador == yo()
+          || (chat().tipo == 'individual' && miembro()));
       }
     }
 

@@ -1,5 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#14324a"/>
-  <circle cx="132" cy="256" r="44" fill="#ffbf3c"/>
-  <rect x="214" y="212" width="196" height="88" rx="44" fill="#ffffff"/>
+  <defs>
+    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f5680"/>
+      <stop offset="1" stop-color="#0c2236"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#f)"/>
+  <!-- Antena con ondas -->
+  <g fill="none" stroke="#ffbf3c" stroke-width="19" stroke-linecap="round">
+    <path d="M327.6 144 A112 112 0 0 1 327.6 266" />
+    <path d="M184.4 144 A112 112 0 0 0 184.4 266" />
+    <path d="M371 107.6 A150 150 0 0 1 371 302.4" stroke-opacity=".78" />
+    <path d="M141 107.6 A150 150 0 0 0 141 302.4" stroke-opacity=".78" />
+    <path d="M414.4 71.2 A188 188 0 0 1 414.4 338.8" stroke-opacity=".57" />
+    <path d="M97.6 71.2 A188 188 0 0 0 97.6 338.8" stroke-opacity=".57" />
+    <line x1="256" y1="236" x2="256" y2="307" stroke-width="18" />
+  </g>
+  <circle cx="256" cy="205" r="25.6" fill="#ffbf3c"/>
+  <!-- K en Morse: raya punto raya -->
+  <g fill="#fff">
+    <rect x="82" y="358" width="123" height="43.5" rx="21.75"/>
+    <circle cx="256" cy="379.75" r="21.75"/>
+    <rect x="307" y="358" width="123" height="43.5" rx="21.75"/>
+  </g>
 </svg>
