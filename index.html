@@ -213,6 +213,16 @@ button.peligro { color: var(--bad); border-color: var(--bad); }
 .burbuja .etiqueta { font-size: 12px; font-weight: 700; color: var(--accent); display: flex; gap: 8px; align-items: center; }
 .burbuja .etiqueta a { text-decoration: none; }
 .burbuja .codigo { font: 13px ui-monospace, Consolas, monospace; letter-spacing: 1px; color: var(--muted); word-break: break-word; }
+.inicio button.ancho2 { min-height: 0; flex-direction: row; gap: 10px; padding: 14px 8px; }
+.inicio button.ancho2 .i { font-size: 24px; }
+.compartir { text-align: center; }
+.compartir .qr { width: min(240px, 70vw); margin: 10px auto; padding: 10px; background: #fff; border-radius: 12px; }
+.compartir .qr svg { display: block; width: 100%; height: auto; }
+.compartir .cp-url { word-break: break-all; }
+details.card > summary { font-weight: 700; font-size: 17px; cursor: pointer; list-style-position: outside; margin-left: 4px; }
+details.card[open] > summary { margin-bottom: 8px; }
+.ayuda ul { padding-left: 20px; margin: 6px 0; }
+.ayuda li { margin: 6px 0; }
 .bloqueo { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 14px; }
 header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white-space: nowrap; background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 8px; }
 .modal { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; background: var(--panel); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
@@ -248,7 +258,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <header class="barra">
   <button class="ico-btn" id="b-inicio" aria-label="Volver al inicio" hidden>⌂</button>
   <h1 id="b-titulo">📻 Morse</h1>
-  <span class="ver" id="brand-version">v0.10.4</span>
+  <span class="ver" id="brand-version">v0.10.5</span>
   <span class="marcador" id="b-marcador" hidden></span>
   <button class="ico-btn" id="b-fin" aria-label="Terminar el ejercicio" title="Terminar" hidden>⏹</button>
   <button class="ico-btn" id="b-opciones" aria-label="Opciones" hidden>⚙</button>
@@ -386,6 +396,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
       <button data-ir="mensajes"><span class="i">✉</span>Mensajes<span class="badge" id="badge" hidden></span></button>
       <button data-ir="ajustes"><span class="i">⚙</span>Ajustes</button>
       <button data-ir="ayuda"><span class="i">❓</span>Ayuda</button>
+      <button data-ir="compartir"><span class="i">📤</span>Compartir la app</button>
     </div>
     <button class="instalar" id="instalar" hidden>📲 Instalar la app en este aparato</button>
   </section>
@@ -635,44 +646,137 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
   <!-- ============ AYUDA ============ -->
   <section class="vista ayuda" id="v-ayuda" hidden>
     <div class="card">
-      <h2>Cómo se usa</h2>
-      <p>En cada ejercicio, el botón <b>⚙</b> de arriba a la derecha despliega las opciones (lección, teclas, velocidad…) y <b>⌂</b> vuelve al inicio.</p>
+      <h2>📻 Qué es esta app</h2>
+      <p>Una app para <b>aprender Morse oyéndolo</b> y practicarlo con tus compañeros. Funciona en el móvil y en el PC, también sin conexión (salvo los chats). Toca cada apartado para ver cómo funciona.</p>
     </div>
-    <div class="card">
-      <h2>🎓 Aprender letras</h2>
-      <p>Método Koch: empiezas con dos letras (K y M) a velocidad real y añades una nueva cada lección. Pulsa <b>Empezar</b>, escucha y pulsa la letra en pantalla.</p>
+
+    <details class="card" open>
+      <summary>🧭 Moverse por la app</summary>
       <ul>
-        <li>Si fallas, suena otra vez la misma hasta que aciertes.</li>
-        <li>Tras varios fallos aparece <b>💡</b>, que te dice cuál es.</li>
-        <li>En color, las teclas de tu lección; apagadas, las que aún no toca.</li>
-        <li>Con un 90 % de aciertos a la primera (de las últimas 20) puedes pasar de lección.</li>
-        <li>Orden: letras, luego números y luego los signos que elijas en Ajustes.</li>
+        <li>Al abrirla sale el <b>inicio</b>, con un botón para cada apartado.</li>
+        <li>En cualquier pantalla, <b>⌂</b> (arriba a la izquierda) vuelve al inicio. El botón «atrás» del móvil también.</li>
+        <li>En los ejercicios, <b>⚙</b> (arriba a la derecha) despliega sus opciones: lección, teclas, velocidad, duración… Se cierra tocando fuera o en ✕.</li>
+        <li>Mientras haces un ejercicio, la barra de arriba muestra <b>⭐ puntos · ✗ fallos · ⏱ tiempo</b> y el botón <b>⏹</b> para terminarlo.</li>
+        <li>Se puede usar en vertical y en horizontal.</li>
       </ul>
-    </div>
-    <div class="card">
-      <h2>📡 Código Q</h2>
-      <p>Suena una abreviatura entera (QRZ, QTH, 73…) y eliges cuál es. Al acertar ves su significado. En ⚙ eliges cuáles practicar y añades las tuyas.</p>
-    </div>
-    <div class="card">
-      <h2>🔤 Palabras</h2>
-      <p>Suena una palabra en español o inglés. Escríbela con el teclado de pantalla (o el del móvil, en ⚙) y pulsa <b>Corregir</b>: lo bien sale en verde, lo mal en rojo. Puedes corregir y volver a probar.</p>
-    </div>
-    <div class="card">
-      <h2>🧩 Grupos</h2>
-      <p>Suenan grupos de letras de tu lección; escríbelos y corrige. Es la práctica clásica de recepción. En Ajustes eliges cuántos grupos (desde 1) y cuántas letras lleva cada uno (de 1 a 5).</p>
-    </div>
-    <div class="card">
-      <h2>✉ Chats</h2>
-      <p>Chatea con un compañero o crea un grupo. Cada mensaje llega cerrado y suena en Morse con <i>tu</i> velocidad: lo descifras letra a letra (lo acertado se queda en verde) y entonces aparece en la conversación.</p>
+    </details>
+
+    <details class="card">
+      <summary>🎓 Aprender letras</summary>
+      <p>Método Koch: empiezas con dos letras (<b>K</b> y <b>M</b>) a velocidad real y cada lección añade una nueva. Primero van las letras, luego los números y al final los signos que elijas en Ajustes.</p>
       <ul>
-        <li>Para responder, primero descifra lo que te han mandado.</li>
-        <li>En tus mensajes ves quién los ha descifrado (✓, con sus fallos), quién va por la mitad (%) y quién no los ha abierto (⏳).</li>
-        <li>En un grupo, el creador puede añadir compañeros y cualquiera puede salirse.</li>
+        <li>Pulsa <b>▶ Empezar</b>: suena una letra y pulsas en pantalla la que has oído. <b>🔁 Repetir</b> la vuelve a hacer sonar.</li>
+        <li>Si aciertas, ves su código y suena la siguiente. Si fallas, suena un aviso y otra vez la misma, hasta que aciertes.</li>
+        <li>Tras varios fallos aparece <b>💡</b>, que te dice cuál es (cuántos fallos, en Ajustes).</li>
+        <li>Siempre ves todas las teclas: <b>en color</b> las de tu lección (la nueva con borde) y <b>apagadas</b> las que aún no tocan.</li>
+        <li>En ⚙ eliges cómo se colocan las teclas: <b>ABC</b>, <b>Teclado</b> (como el del ordenador o el móvil) o <b>Al azar</b> (cambia en cada lección, para no aprenderte la posición).</li>
+        <li><b>Paso automático de lección:</b> cuando en las últimas 20 letras aciertas a la primera el porcentaje elegido (90 % por defecto) y contestas rápido (menos de 3 s de media), pasas solo a la siguiente lección. En ⚙ ves cómo vas. Se ajusta o se desactiva en Ajustes; desactivado, aparece un botón para pasar tú.</li>
+        <li>En ⚙ también cambias de lección (◀ ▶) y oyes la letra nueva (🔊).</li>
       </ul>
-    </div>
-    <div class="card">
-      <h2>Velocidad</h2>
-      <p><b>Letra</b>: lo rápido que suena cada letra. <b>Efectiva</b>: si es menor, se alargan las pausas entre letras (Farnsworth). Lo recomendado es letra rápida (18–20) y efectiva baja al principio.</p>
+    </details>
+
+    <details class="card">
+      <summary>📡 Código Q y abreviaturas</summary>
+      <ul>
+        <li>Suena una abreviatura completa (QRZ, QTH, CQ, 73…) y eliges cuál es entre 6 opciones.</li>
+        <li>Si fallas vuelve a sonar; tras varios fallos aparece 💡. Al acertar ves lo que significa.</li>
+        <li>En ⚙ marcas cuáles quieres practicar, las escuchas (▶) y <b>añades las tuyas</b> con su significado.</li>
+      </ul>
+    </details>
+
+    <details class="card">
+      <summary>🔤 Palabras</summary>
+      <ul>
+        <li>Suena una palabra y la escribes con el teclado de pantalla. Cuando la tengas, pulsa <b>✔ Corregir</b>: lo bien sale en verde, lo mal en rojo y lo que falta como «_».</li>
+        <li>Para arreglarla no hace falta borrar todo: <b>toca entre dos letras</b> para poner ahí el cursor y añade o borra (⌫). En el PC también valen las flechas.</li>
+        <li><b>🔂 Bucle</b>: la palabra se repite sola con una pausa (la pausa se elige en ⚙), hasta que la aciertas.</li>
+        <li>Tras varios intentos aparece <b>💡 Solución</b>; <b>⏭ Siguiente</b> pasa a otra.</li>
+        <li>En ⚙ eliges las palabras: <b>español, inglés, las dos, mis palabras, inventadas</b> (nunca se repiten) o <b>indicativos de radio</b>. Las de las listas no se repiten hasta que han salido todas.</li>
+        <li>También en ⚙: «solo con las letras que ya sé», escribir con el <b>teclado del móvil</b>, incluir la <b>Ñ</b> (por defecto no, en Morse se usa poco) y <b>Mis palabras</b>: escribe o pega tu propia lista.</li>
+      </ul>
+    </details>
+
+    <details class="card">
+      <summary>🧩 Grupos</summary>
+      <p>La práctica clásica de recepción: suenan grupos de letras de tu lección, los escribes y pulsas <b>Corregir</b>. Verás lo acertado en verde, lo fallado en rojo y lo que faltó en ámbar. Con un 90 % pasas de lección. En Ajustes eliges cuántos grupos (desde 1) y cuántas letras tiene cada uno (de 1 a 5).</p>
+    </details>
+
+    <details class="card">
+      <summary>🔊 Escuchar</summary>
+      <ul>
+        <li><b>Traductor</b>: escribe cualquier texto, ves su código y lo escuchas en Morse.</li>
+        <li><b>Tabla</b>: todos los caracteres con su código; toca uno para oírlo.</li>
+      </ul>
+    </details>
+
+    <details class="card">
+      <summary>⭐ Tiempo, puntos y repaso inteligente</summary>
+      <ul>
+        <li>Cada ejercicio dura lo que elijas (1 a 30 minutos o sin límite, en ⚙ o en Ajustes). Al acabar sale tu resultado.</li>
+        <li><b>Puntos:</b> 10 por acierto a la primera, más un premio por racha de aciertos seguidos; 3 si aciertas tras fallar. Cuanto más rápida la velocidad, más puntos. Se guarda tu <b>récord</b>.</li>
+        <li>El resultado se puede <b>compartir</b> por WhatsApp, Telegram… con un mensaje gracioso para retar a tus amigos (pon tu nombre en Ajustes).</li>
+        <li><b>Repaso inteligente:</b> la app apunta lo que fallas y hace que salga más a menudo hasta que lo domines; y lo que hace tiempo que no sale, vuelve para que no se olvide. En Ajustes ves «Lo que más te cuesta».</li>
+      </ul>
+    </details>
+
+    <details class="card">
+      <summary>✉ Chats: tu cuenta</summary>
+      <ul>
+        <li>Para chatear necesitas una cuenta (en Mensajes → <b>Crear cuenta</b>): <b>nombre</b> (obligatorio, puede repetirse), <b>indicativo</b> (opcional) y una <b>contraseña</b> de al menos 4 caracteres.</li>
+        <li>Tu <b>usuario</b> es tu indicativo; si no tienes, se saca de tu nombre (JUANPEREZ, JUANPEREZ2…). Con él entras y con él te buscan tus compañeros. Apúntalo.</li>
+        <li>La contraseña solo se pide al crear la cuenta y al entrar desde otro aparato. <b>Cada persona debe usar su propia cuenta</b>: si dos aparatos están con el mismo usuario, la app cree que los mensajes son tuyos y no los cierra.</li>
+        <li><b>🔓 Cerrar sesión</b> desconecta tu cuenta de este aparato (para volver al inicio usa ⌂, no esto).</li>
+      </ul>
+    </details>
+
+    <details class="card">
+      <summary>💬 Chats: mensajes y grupos</summary>
+      <ul>
+        <li><b>✉ Chat con un compañero</b> (escribe su usuario o indicativo) o <b>👥 Nuevo grupo</b> (nombre y usuarios separados por espacios).</li>
+        <li><b>🟢 Conectados ahora</b>: quién tiene la app abierta; tócalo para chatear.</li>
+        <li>Al escribir eliges cómo sale el mensaje: <b>Fácil</b> (tu compañero ve las casillas y los espacios), <b>Difícil</b> (sin pistas) o <b>💬 Texto normal</b> (llega tal cual, sin Morse). El botón dice siempre «📻 Enviar en Morse» o «💬 Enviar texto». El 🔊 de al lado te deja oír cómo sonará.</li>
+        <li>Los mensajes en Morse llegan <b>cerrados</b> (🔒). Tócalo y se abre ahí mismo: ▶ Escuchar, escribes lo que oyes y lo acertado se queda en verde (en modo fácil, toca una casilla para oír solo esa letra). Al terminar aparece el texto, con 🔊 para volver a oírlo.</li>
+        <li><b>Para responder en Morse</b> hay que descifrar antes lo que te han mandado; mientras tanto puedes contestar en texto normal.</li>
+        <li>Tus mensajes los ves en claro, con «📻 Enviado en Morse», el código y quién los ha descifrado: ✓ (con sus fallos), el % de quien va a medias, ⏳ sin abrir o 🏳 si se rindió.</li>
+        <li><b>Menú ⋮</b> de cada chat: ver los miembros, añadir gente (el creador), <b>invitar con un enlace</b> por WhatsApp o Telegram, <b>salir del grupo</b>, o <b>borrar</b> la conversación o el grupo (se borra para todos).</li>
+        <li>Quien abre un enlace de invitación entra en la app y se le pregunta si quiere unirse (si no tiene cuenta, primero la crea).</li>
+      </ul>
+    </details>
+
+    <details class="card">
+      <summary>⚙ Ajustes</summary>
+      <ul>
+        <li><b>Sonido:</b> velocidad de cada letra, velocidad efectiva, tono, volumen y el <b>sonido al fallar</b> (ups, boing, zumbido… o ninguno).</li>
+        <li><b>Lecciones:</b> marca las que ya sabes para empezar desde la siguiente, y elige qué <b>signos</b> aprender.</li>
+        <li><b>Aprendizaje:</b> incluir la Ñ, tras cuántos fallos sale la ayuda, paso automático de lección (aciertos y tiempo), grupos y letras por grupo, duración de los ejercicios y tu nombre para compartir.</li>
+        <li><b>Lo que más te cuesta:</b> tus letras y abreviaturas con más fallos; se puede poner a cero.</li>
+      </ul>
+      <p><b>Velocidad efectiva (Farnsworth):</b> si es menor que la de la letra, cada letra suena rápida pero con más pausa entre ellas. Lo recomendado al empezar: letra a 18–20 y efectiva baja.</p>
+    </details>
+
+    <details class="card">
+      <summary>📲 Instalar, compartir y novedades</summary>
+      <ul>
+        <li><b>Instalar:</b> en el inicio, «📲 Instalar la app en este aparato» (Chrome o Edge en Android y PC). En iPhone: en Safari, botón Compartir → «Añadir a pantalla de inicio». Queda con su icono y funciona sin conexión.</li>
+        <li><b>📤 Compartir la app:</b> desde el inicio puedes mandar el enlace por WhatsApp, Telegram… o enseñar un código QR para que otro lo escanee con su móvil.</li>
+        <li><b>Novedades:</b> cuando se publica una versión nueva, al abrir la app te sale qué ha cambiado. Si la tienes abierta, aparece una franja verde para actualizar.</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ============ COMPARTIR LA APP ============ -->
+  <section class="vista" id="v-compartir" hidden>
+    <div class="card compartir">
+      <h2>📤 Comparte la app</h2>
+      <p>Invita a alguien a aprender Morse contigo: mándale el enlace o que escanee el código con la cámara de su móvil.</p>
+      <div class="qr" id="cp-qr"><span class="muted">Cargando el código…</span></div>
+      <p class="cp-url"><a id="cp-url" target="_blank" rel="noopener"></a></p>
+      <div class="fila" style="justify-content:center">
+        <button class="pri" data-cp="compartir">📤 Compartir</button>
+        <button data-cp="wa">WhatsApp</button>
+        <button data-cp="tg">Telegram</button>
+        <button data-cp="copiar">📋 Copiar enlace</button>
+      </div>
     </div>
   </section>
 </main>
@@ -681,7 +785,7 @@ header.barra .marcador { font: 600 14px ui-monospace, Consolas, monospace; white
 <script>
 'use strict';
 
-const App = { version: '0.10.4' };
+const App = { version: '0.10.5' };
 
 // Proyecto Firebase morse-ea1gwm. Si se pone a null, o con ?local en la URL, la app
 // funciona en "modo prueba local": los mensajes se guardan en este navegador y cada
@@ -835,7 +939,8 @@ const Sonido = {
 const DESTINOS = {
   inicio: ['inicio', null, '📻 Morse'], letras: ['aprender', 'pulsar', 'Aprender letras'], q: ['aprender', 'q', 'Código Q'],
   palabras: ['aprender', 'palabras', 'Palabras'], grupos: ['aprender', 'grupos', 'Grupos'], escuchar: ['escuchar', null, 'Escuchar'],
-  mensajes: ['mensajes', null, 'Mensajes'], ajustes: ['ajustes', null, 'Ajustes'], ayuda: ['ayuda', null, 'Ayuda']
+  mensajes: ['mensajes', null, 'Mensajes'], ajustes: ['ajustes', null, 'Ajustes'], ayuda: ['ayuda', null, 'Ayuda'],
+  compartir: ['compartir', null, 'Compartir la app']
 };
 // Un enlace de invitación (#unirse/<grupo>/<código>/<nombre>) se guarda y lleva a Mensajes,
 // donde se pregunta si quieres entrar (después de entrar o crear la cuenta, si hace falta).
@@ -863,6 +968,7 @@ function pintarDestino(d) {
   $('b-titulo').textContent = titulo;
   if (ap) mostrarApartado(ap);
   if (d === 'inicio') pintarInicio();
+  if (d === 'compartir') pintarCompartir();
   $('main').scrollTop = 0;
 }
 const mostrarVista = v => ir(v === 'aprender' ? 'letras' : v);
@@ -2452,10 +2558,38 @@ $('ds-parar').onclick = () => Sonido.parar();
 $('ds-volver').onclick = () => Desc.cerrar();
 $('ds-rendirse').onclick = () => { if (confirm('¿Ver la solución? Contará como no resuelto.')) Desc.terminar(true); };
 
+// ---------------------------------------------------------------- compartir la app
+const URL_COMPARTIR = () => URL_APP || 'https://ea1gwm.github.io/morse/';
+const TEXTO_COMPARTIR = '📻 Estoy aprendiendo Morse con esta app: lecciones, código Q, palabras y chats en Morse con compañeros. ¡Pruébala y practicamos juntos!';
+function cargarQR() {
+  if (window.qrcode) return Promise.resolve();
+  return new Promise((ok, mal) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    sc.onload = ok; sc.onerror = mal; document.head.appendChild(sc);
+  });
+}
+async function pintarCompartir() {
+  const url = URL_COMPARTIR();
+  $('cp-url').href = url; $('cp-url').textContent = url;
+  try {
+    await cargarQR();
+    const q = qrcode(0, 'M'); q.addData(url); q.make();
+    $('cp-qr').innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  } catch { $('cp-qr').innerHTML = '<span class="muted">Sin conexión no se puede crear el código QR; usa los botones.</span>'; }
+}
+document.querySelectorAll('[data-cp]').forEach(b => b.onclick = async () => {
+  const url = URL_COMPARTIR();
+  if (b.dataset.cp === 'copiar') {
+    try { await navigator.clipboard.writeText(url); toast('📋 Enlace copiado'); } catch { prompt('Copia el enlace:', url); }
+  } else compartirTexto(TEXTO_COMPARTIR, url, b.dataset.cp);
+});
+
 // ---------------------------------------------------------------- novedades y actualizaciones
 // Al abrir una versión nueva se enseña qué ha cambiado desde la última que se vio.
 // Si la app lleva rato abierta y se publica otra, se avisa para recargar.
 const NOVEDADES = [
+  ['0.10.5', ['Nuevo apartado «📤 Compartir la app» en el inicio: manda el enlace por WhatsApp o Telegram, o enseña un código QR para escanearlo.', 'La Ayuda está reescrita y explica todo lo que hace la app, por apartados.']],
   ['0.10.4', ['Grupos: puedes poner desde 1 grupo y elegir cuántas letras lleva cada grupo (de 1 a 5), para empezar más fácil.']],
   ['0.10.3', ['En tus mensajes se indica si salieron en Morse (📻, con el código y para escucharlo) o en texto normal (💬). Tu compañero los recibe cerrados y los descifra oyéndolos.']],
   ['0.10.2', ['En Mensajes, el botón «Salir» ahora se llama «Cerrar sesión» y pide confirmación (para volver al inicio usa ⌂).']],
